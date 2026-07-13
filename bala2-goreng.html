@@ -1,0 +1,2065 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Bala2 Rush</title>
+
+<!-- ===== PWA: biar bisa di-install jadi app di HP ===== -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#8a5a2b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bala2 Rush">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" href="./favicon.png" type="image/png">
+<script>
+  // daftarin service worker -> game jalan OFFLINE
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    });
+  }
+  // kunci layar ke portrait kalau HP-nya ngizinin.
+  // Di desktop (Windows) ini bisa THROW langsung, bukan cuma reject -> harus try/catch,
+  // kalau enggak script-nya mati duluan dan game gak jalan sama sekali.
+  try {
+    if (screen.orientation && typeof screen.orientation.lock === "function") {
+      const p = screen.orientation.lock("portrait");
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    }
+  } catch (e) { /* desktop / gak didukung — abaikan */ }
+</script>
+<style>
+  :root{
+    --bg1:#2a1810; --bg2:#3d2416; --panel:#fff6e6; --panel2:#ffe9c2;
+    --wood:#8a5a2b; --wood2:#a06a34; --accent:#e8721c; --accent2:#ffb100;
+    --good:#3fae5a; --bad:#e23c3c; --ink:#3a2410; --muted:#8a6f52;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+    -webkit-user-select:none;user-select:none;             /* Android lama & Samsung Internet */
+    font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;}
+  /* teks di kartu tetep bisa dibaca/di-select-free, tapi jangan ada highlight biru pas nge-tap */
+  html,body{margin:0;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 0%,var(--bg2),var(--bg1));color:var(--ink);touch-action:none;
+    -webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent;}
+  /* pakai dvh biar gak ketutupan address bar HP (Samsung/Chrome) */
+  #game{position:fixed;inset:0;display:flex;flex-direction:column;max-width:940px;margin:0 auto;
+    height:100vh;height:100dvh;overflow:hidden;}
+
+  /* safe-area: biar gak ketiban notch / status bar pas mode app */
+  .topbar{display:flex;gap:6px;align-items:center;color:#fff2dd;flex-wrap:wrap;
+    padding:6px 8px;padding-top:calc(6px + env(safe-area-inset-top,0px));
+    background:linear-gradient(var(--wood2),var(--wood));}
+  .field{padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));}
+  .stat{background:#00000030;border-radius:10px;padding:4px 9px;font-weight:700;font-size:14px;display:flex;gap:4px;align-items:center;white-space:nowrap;}
+  .stat small{opacity:.8;}
+  .daylabel{font-weight:800;font-size:15px;}
+  .clock{margin-left:auto;background:#00000045;font-variant-numeric:tabular-nums;}
+  .clock.rush{background:var(--accent);animation:pulse .6s infinite alternate;}
+  #comboStat{background:#c0392b;}
+  .progwrap{flex:1 1 100%;height:8px;background:#00000035;border-radius:6px;overflow:hidden;margin-top:2px;}
+  .progbar{height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .2s;}
+  @keyframes pulse{to{transform:scale(1.06)}}
+
+  /* banners stack, never overlap */
+  #banners{display:flex;flex-direction:column;}
+  .banner{display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 10px;font-weight:800;font-size:14px;color:#fff;flex-wrap:wrap;}
+  .banner.rush{background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .banner.fuse{background:#c0261c;animation:fuseFlash .5s infinite alternate;}
+  @keyframes fuseFlash{to{background:#7d130f}}
+  /* maling Trinkgeld: jalan mendekat, harus diklik */
+  .thiefLane{position:relative;height:74px;margin:0 4px;flex:none;}
+  .tipjar{position:absolute;right:4px;bottom:10px;text-align:center;line-height:1;}
+  .tipjar .tj{display:block;font-size:9px;font-weight:800;color:#ffd9a0;letter-spacing:.5px;}
+  .tipjar .tjAmt{display:block;font-size:11px;font-weight:900;color:#fff;background:#00000055;
+    border-radius:6px;padding:0 5px;margin-top:1px;white-space:nowrap;}
+  .tipjar.grab{animation:jarShake .18s infinite;}
+  @keyframes jarShake{0%,100%{transform:translateX(0)}50%{transform:translateX(-3px) rotate(-8deg)}}
+  .thief{position:absolute;bottom:14px;left:0;cursor:pointer;user-select:none;
+    filter:drop-shadow(0 3px 4px #0008);padding:4px;}
+  .thief .body{display:inline-block;animation:sneak .32s infinite alternate;}
+  @keyframes sneak{from{transform:translateY(0) rotate(-4deg)}to{transform:translateY(-5px) rotate(4deg)}}
+  .thief .slap{position:absolute;left:-6px;top:-14px;font-size:34px;opacity:0;transform:rotate(-25deg) scale(.5);}
+  .thief.hit .body{animation:none;transform:rotate(70deg) translateY(6px);filter:brightness(.8);}
+  .thief.hit .slap{animation:slapIn .28s ease-out;}
+  @keyframes slapIn{0%{opacity:0;transform:translate(-18px,-22px) rotate(-40deg) scale(.6)}
+    45%{opacity:1;transform:translate(4px,2px) rotate(6deg) scale(1.25)}
+    100%{opacity:0;transform:translate(6px,6px) rotate(10deg) scale(1)}}
+  .thiefWarn{position:absolute;bottom:44px;font-size:11px;font-weight:800;color:#fff;background:#c0261c;
+    padding:1px 6px;border-radius:6px;white-space:nowrap;transform:translateX(-6px);}
+  .fuseBtn{border:none;border-radius:8px;padding:6px 16px;font-weight:800;background:#ffd23f;color:#5a2a00;cursor:pointer;box-shadow:0 2px 0 #0005;}
+  .fuseBtn:active{transform:translateY(1px);}
+
+  .field{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:8px;overflow:hidden;position:relative;}
+  /* JANGAN di-scroll: antrean maks 8 -> selalu muat 2 baris x 4 kartu */
+  .customers{flex:1 1 auto;min-height:150px;background:#00000022;border-radius:14px;padding:8px;
+    display:flex;gap:8px;flex-wrap:wrap;align-content:flex-start;overflow:hidden;}
+  .stations{flex:0 0 auto;}
+  .thiefLane{flex:0 0 auto;}
+  .cust{width:calc(25% - 6px);background:var(--panel);border-radius:12px;padding:6px;box-shadow:0 3px 0 #0003;position:relative;animation:pop .25s;cursor:pointer;user-select:none;border:2px solid transparent;}
+  .cust:active{transform:scale(.95);}
+  .cust.can{border-color:var(--good);}
+  .cust .bubble{background:#fff;border:1.5px solid #0002;border-radius:10px;padding:3px 5px;font-size:9.5px;font-weight:700;line-height:1.15;text-align:center;margin-bottom:5px;position:relative;min-height:26px;display:flex;align-items:center;justify-content:center;}
+  .cust .bubble:after{content:"";position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#fff;}
+  .cust .face{width:44px;margin:0 auto;line-height:0;}
+  .cust .order{font-size:13px;font-weight:800;text-align:center;margin:3px 0;}
+  .cust .tags{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;font-size:10px;min-height:16px;}
+  .tag{background:var(--panel2);border-radius:6px;padding:1px 5px;font-weight:700;}
+  .tag.kacang{background:#f0e0c0;color:#8a5a1c;}
+  .tag.buru{background:#fff0c2;color:#b8860b;}
+  .tag.borongan{background:#e2d5ff;color:#5b3a99;}
+  .tag.kapal{background:#ffe08a;color:#7a4a00;}
+  .cust.kapal{border-color:#ffc83d;box-shadow:0 0 0 2px #ffc83d,0 3px 0 #0003;background:linear-gradient(#fffdf3,#fff6d9);}
+  .cust.kapal.can{border-color:var(--good);}
+  .pat{height:6px;background:#0002;border-radius:4px;margin-top:4px;overflow:hidden;}
+  .patbar{height:100%;width:100%;background:var(--good);}
+  .floatp{position:absolute;left:50%;top:0;transform:translateX(-50%);font-weight:800;font-size:16px;pointer-events:none;animation:floatUp 1s forwards;z-index:6;}
+  @keyframes floatUp{to{transform:translate(-50%,-42px);opacity:0}}
+
+  .stations{display:flex;gap:8px;}
+  .panel{background:linear-gradient(var(--panel),var(--panel2));border-radius:14px;padding:8px;box-shadow:0 3px 0 #0003;display:flex;flex-direction:column;gap:6px;}
+  .panel h3{margin:0;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;gap:6px;}
+  .wajan{flex:1;position:relative;}
+  /* animasi nuang minyak */
+  .pourFx{position:absolute;left:0;right:0;top:24px;height:84px;z-index:6;pointer-events:none;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}
+  .pourFx .can{font-size:28px;line-height:1;transform-origin:60% 60%;animation:canTilt .3s ease-out forwards;}
+  .pourFx .stream{width:8px;height:34px;border-radius:0 0 5px 5px;
+    background:linear-gradient(180deg,#ffd75e,#f6c445 40%,#e0a52a);
+    box-shadow:0 0 6px #f6c44577;
+    transform-origin:top;animation:streamDown .25s ease-out forwards;}
+  .pourFx .splash{width:46px;height:11px;margin-top:-3px;border-radius:50%;
+    background:radial-gradient(ellipse,#ffd75eaa,#f6c44533 70%,transparent);
+    animation:splashPulse .4s infinite alternate;}
+  @keyframes canTilt{from{transform:rotate(0)}to{transform:rotate(-42deg)}}
+  @keyframes streamDown{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  @keyframes splashPulse{from{transform:scale(.8);opacity:.55}to{transform:scale(1.15);opacity:1}}
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;}
+  /* keranjang Fritteuse: kotak berjaring, bukan wajan bulat */
+  .slot{aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;
+    position:relative;cursor:pointer;user-select:none;overflow:hidden;
+    background:
+      repeating-linear-gradient(90deg,#00000030 0 1px,transparent 1px 6px),
+      repeating-linear-gradient(0deg,#00000030 0 1px,transparent 1px 6px),
+      linear-gradient(#3f2a18,#2b1c0e);
+    box-shadow:inset 0 3px 7px #000a, inset 0 0 0 2px #8f9aa3;}
+  .slot:before{content:"";position:absolute;left:0;right:0;top:0;height:26%;
+    background:linear-gradient(#c98d1c66,#c98d1c00);pointer-events:none;}
+  /* ===== ikon & karakter SVG (flat vector) ===== */
+  .ic{width:16px;height:16px;vertical-align:-3px;flex:none;}
+  .ic.big{width:22px;height:22px;vertical-align:-5px;}
+  .av{width:100%;height:auto;display:block;}          /* wajah pembeli */
+  .jarIc{width:30px;height:30px;display:block;margin:0 auto;}
+  .jerIc{width:26px;height:26px;display:block;margin:0 auto;}
+  .thiefIc{width:40px;height:44px;display:block;}
+  .newsIc{width:76px;height:84px;display:block;margin:0 auto;}
+  .char .who svg,.char svg.who{width:44px;height:48px;}
+
+  /* bala2 digambar pakai CSS: kuning keemasan + bintik kol & wortel */
+  .bala{display:inline-block;width:1em;height:1em;position:relative;vertical-align:-.16em;
+    border-radius:52% 48% 50% 50%/50% 52% 48% 50%;
+    background:radial-gradient(circle at 34% 28%,#ffe27a 0%,#f6c445 45%,#e0a52a 78%,#c98d1c 100%);
+    box-shadow:inset -2px -2px 4px #b8790d55, 0 1px 2px #0004;}
+  .bala:after{content:"";position:absolute;inset:0;border-radius:inherit;
+    background:
+      radial-gradient(circle at 26% 66%,#5aab3f 0 13%,transparent 14%),
+      radial-gradient(circle at 71% 41%,#f2843c 0 11%,transparent 12%),
+      radial-gradient(circle at 57% 78%,#3f8c33 0 9%,transparent 10%),
+      radial-gradient(circle at 44% 45%,#e8963a 0 7%,transparent 8%);}
+  .bala.sm{width:15px;height:15px;}
+  .slot .em{font-size:26px;width:26px;height:26px;opacity:.22;}
+  .slot.cooking .em{opacity:1;}
+  .slot.cooking .em{filter:saturate(.75) brightness(1.08);}   /* masih pucat */
+  .slot.ready{cursor:pointer;box-shadow:inset 0 3px 7px #000a, inset 0 0 0 2px var(--good), 0 0 0 2px var(--good);}
+  .slot.ready .em{opacity:1;filter:saturate(1.15);animation:bounce .5s infinite alternate;}
+  .slot.burnt .em{opacity:1;filter:brightness(.45) saturate(.5) sepia(.5);}
+  .slot.off{background:
+      repeating-linear-gradient(90deg,#00000030 0 1px,transparent 1px 6px),
+      repeating-linear-gradient(0deg,#00000030 0 1px,transparent 1px 6px),
+      linear-gradient(#1a1208,#100b05);}
+  .slot.off:before{display:none;}
+  .slot.off .em{filter:brightness(.25);}
+  .slot.off:after{content:"⚡";position:absolute;font-size:20px;animation:flick .5s infinite alternate;}
+  @keyframes flick{from{opacity:.35}to{opacity:1}}
+  @keyframes bounce{to{transform:translateY(-4px)}}
+  .ring{position:absolute;inset:0;border-radius:50%;}
+  .lbl{position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:800;padding:0 3px;border-radius:4px;white-space:nowrap;}
+  .lbl.ready{background:var(--good);color:#fff;}
+  .lbl.burnt{background:var(--bad);color:#fff;}
+  .slots.dropok{outline:3px dashed var(--good);outline-offset:3px;border-radius:10px;}
+
+  .side{width:172px;gap:8px;}
+  .res{background:#fff;border-radius:12px;padding:7px;display:flex;flex-direction:column;gap:5px;}
+  .rh{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;}
+  .rh .big{font-size:20px;}
+  .bar{height:9px;background:#0001;border-radius:6px;overflow:hidden;}
+  .bar>span{display:block;height:100%;width:100%;border-radius:6px;}
+  .bar.ado>span{background:linear-gradient(90deg,#d9a441,#a86a1c);}
+  .bar.sc>span{background:linear-gradient(90deg,#c99a4a,#8a5a1c);}
+  .bar.oil>span{background:linear-gradient(90deg,#f2c200,#b58900);}
+  .statein{font-size:11px;color:var(--muted);font-weight:700;text-align:center;}
+  .statein.hot{color:var(--good);} .statein.cold{color:var(--bad);}
+  button.act{border:none;border-radius:10px;padding:9px 6px;font-weight:800;font-size:13px;color:#fff;cursor:pointer;box-shadow:0 3px 0 #0004;background:var(--accent);width:100%;}
+  button.act:active{transform:translateY(2px);box-shadow:0 1px 0 #0004;}
+  button.act.blue{background:#3a7bd5;}
+  button.act:disabled{opacity:.5;}
+
+  /* Penghangat (drop target) */
+  .warmer{width:120px;background:linear-gradient(#ffd98a,#f0b44c);border-radius:14px;padding:8px;box-shadow:0 3px 0 #0003;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:3px solid transparent;}
+  .warmer.dropok{border-color:var(--good);transform:scale(1.04);}
+  .warmer .t{font-size:11px;font-weight:800;color:#7a4a00;text-transform:uppercase;}
+  .warmer .n{font-size:30px;font-weight:900;color:#5a3300;}
+  .warmer .hint{font-size:9px;color:#7a4a00;text-align:center;line-height:1.1;}
+
+  /* Jerigen minyak (drag source) */
+  #jerigen{cursor:grab;text-align:center;background:#fff8e2;border-radius:10px;padding:4px;border:2px dashed #d0a94a;}
+  #jerigen.lowpulse{animation:pulse .5s infinite alternate;border-color:var(--bad);}
+
+  .ghost{position:fixed;font-size:34px;pointer-events:none;z-index:99;transform:translate(-50%,-50%);filter:drop-shadow(0 4px 6px #0007);}
+  .coin{position:fixed;width:15px;height:15px;border-radius:50%;pointer-events:none;z-index:98;
+    transition:transform .62s cubic-bezier(.34,.1,.42,1),opacity .62s;}
+  .coin.gold{background:radial-gradient(circle at 35% 30%,#ffe895,#f6c445 55%,#cf9312);
+    box-shadow:inset -1px -1px 2px #96660877,0 0 3px #f6c44599;}
+  .coin.silver{background:radial-gradient(circle at 35% 30%,#ffffff,#dbe1e6 55%,#9aa4ad);
+    box-shadow:inset -1px -1px 2px #6b747c77,0 0 3px #cfd6dc99;}
+  #money.bump{animation:moneyBump .3s;}
+  @keyframes moneyBump{0%,100%{transform:scale(1)}45%{transform:scale(1.35);color:#ffe27a}}
+  .tipjar.plink{animation:plink .32s;}
+  @keyframes plink{0%,100%{transform:scale(1)}40%{transform:scale(1.28) rotate(-5deg)}}
+
+  /* Character */
+  #charLayer{position:absolute;left:0;right:0;bottom:8px;display:flex;justify-content:center;pointer-events:none;z-index:7;}
+  .char{display:flex;align-items:flex-end;gap:6px;animation:charIn .4s;}
+  .char .who{font-size:46px;animation:bob .5s infinite alternate;}
+  .char .say{background:#fff;border-radius:12px;padding:8px 12px;font-weight:700;font-size:13px;max-width:280px;box-shadow:0 4px 10px #0006;position:relative;}
+  .char .say:after{content:"";position:absolute;left:-6px;bottom:12px;border:6px solid transparent;border-right-color:#fff;}
+  @keyframes charIn{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
+  @keyframes bob{to{transform:translateY(-5px)}}
+
+  .overlay{position:fixed;inset:0;background:#1a0e07dd;display:flex;align-items:center;justify-content:center;padding:16px;z-index:20;}
+  /* PENTING (Android): body pakai touch-action:none, jadi scroll sentuh di dalam
+     kartu ke-blokir. Tanpa ini, toko & tutorial gak bisa di-scroll pakai jari.
+     'manipulation' = scroll boleh, TAPI double-tap-to-zoom dimatiin. Wajib:
+     Chrome Android NGEIGNORE user-scalable=no, jadi klik cepet 2x di bahan
+     adonan bikin layar ke-zoom sendiri. */
+  .card{background:linear-gradient(var(--panel),var(--panel2));border-radius:18px;padding:18px;
+    max-width:460px;width:100%;box-shadow:0 8px 30px #000a;
+    max-height:92vh;max-height:92dvh;overflow-y:auto;
+    touch-action:manipulation;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+  .overlay{touch-action:manipulation;}
+  .card h1{margin:.1em 0;font-size:25px;text-align:center;color:var(--accent);}
+  .card h2{margin:.1em 0 .3em;text-align:center;font-size:19px;}
+  .card p{text-align:center;margin:.4em 0;line-height:1.45;font-size:15px;}
+  .bigbtn{display:block;width:100%;border:none;border-radius:12px;padding:14px;font-weight:800;font-size:18px;color:#fff;background:var(--accent);cursor:pointer;margin-top:10px;box-shadow:0 4px 0 #0004;}
+  .bigbtn.green{background:var(--good);}
+  .newsChar{font-size:64px;text-align:center;animation:bob .6s infinite alternate;}
+  /* ===== tombol menu + setelan ===== */
+  .menuBtn{background:#00000045;border:none;color:#fff2dd;font-size:18px;font-weight:800;
+    border-radius:10px;padding:3px 10px;cursor:pointer;line-height:1.3;}
+  .menuBtn:active{transform:scale(.92);}
+  .setRow{display:flex;gap:8px;margin:10px 0;}
+  .setBtn{flex:1;border:none;border-radius:10px;padding:11px 6px;font-weight:800;font-size:13px;
+    cursor:pointer;box-shadow:0 3px 0 #0003;}
+  .setBtn.on{background:var(--good);color:#fff;}
+  .setBtn.off{background:#c9bda9;color:#5a4a35;}
+  .setBtn:active{transform:translateY(2px);box-shadow:0 1px 0 #0003;}
+
+  /* ===== tutorial bergerak ===== */
+  .tut{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;}
+  .tBox{background:#fff;border-radius:12px;padding:6px;border:2px solid #0001;}
+  .tArt{position:relative;height:64px;background:#00000012;border-radius:8px;overflow:hidden;margin-bottom:5px;}
+  .tCap{font-size:11px;line-height:1.35;text-align:left;}
+  .tNote{background:#fff3e0;border:2px solid var(--accent);border-radius:10px;padding:7px;
+    font-size:12px;line-height:1.5;margin-bottom:6px;}
+  .tHand{position:absolute;font-size:17px;z-index:3;}
+  .tSlot{position:absolute;left:14px;top:14px;width:36px;height:36px;border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    background:repeating-linear-gradient(90deg,#00000030 0 1px,transparent 1px 5px),
+      repeating-linear-gradient(0deg,#00000030 0 1px,transparent 1px 5px),linear-gradient(#3f2a18,#2b1c0e);
+    box-shadow:inset 0 2px 5px #000a, inset 0 0 0 1.6px #8f9aa3;}
+  .tSlot .bala{width:24px;height:24px;}
+  .tTag{position:absolute;font-size:8px;font-weight:800;color:#fff;padding:1px 4px;border-radius:4px;}
+  .tTagReady{left:8px;top:52px;background:var(--good);animation:tReadyTag 2.8s infinite;}
+  /* 1. goreng: pucat -> matang */
+  .tFry{animation:tFry 2.8s infinite;}
+  @keyframes tFry{0%,10%{opacity:.25;filter:saturate(.5)}55%{opacity:1;filter:saturate(.8) brightness(1.05)}
+    70%,92%{opacity:1;filter:saturate(1.2)}100%{opacity:.25;filter:saturate(.5)}}
+  @keyframes tReadyTag{0%,66%{opacity:0}72%,92%{opacity:1}100%{opacity:0}}
+  .tHand1{left:22px;top:34px;animation:tPoke 2.8s infinite;}
+  @keyframes tPoke{0%,6%{transform:translate(6px,6px);opacity:0}12%{transform:translate(0,0);opacity:1}
+    22%{transform:translate(0,0);opacity:1}30%,100%{opacity:0}}
+  /* 2. ambil -> penghangat */
+  .tTake{opacity:1;filter:saturate(1.2);}
+  .tWarm{position:absolute;right:12px;top:18px;}
+  .tWarm svg{width:28px;height:28px;display:block;}
+  .tCount{position:absolute;right:-4px;top:-6px;font-size:9px;font-weight:900;color:var(--good);
+    background:#fff;border-radius:6px;padding:0 3px;opacity:0;animation:tPlus 2.6s infinite;}
+  @keyframes tPlus{0%,55%{opacity:0;transform:translateY(0)}65%{opacity:1;transform:translateY(-4px)}
+    85%{opacity:1}100%{opacity:0}}
+  .tFly{position:absolute;left:26px;top:22px;width:20px;height:20px;opacity:0;
+    animation:tFly 2.6s infinite;}
+  @keyframes tFly{0%,28%{opacity:0;transform:translate(0,0) scale(1)}
+    34%{opacity:1;transform:translate(0,0) scale(1)}
+    62%{opacity:1;transform:translate(78px,-4px) scale(.6)}
+    70%,100%{opacity:0;transform:translate(78px,-4px) scale(.5)}}
+  .tHand2{left:22px;top:38px;animation:tPoke 2.6s infinite;}
+  /* 3. layani pembeli */
+  .tCust{position:absolute;left:10px;top:6px;width:62px;background:var(--panel);border-radius:8px;
+    padding:3px;box-shadow:0 2px 0 #0002;border:2px solid var(--good);}
+  .tBub{display:block;background:#fff;border-radius:5px;font-size:6.5px;font-weight:800;padding:1px 2px;
+    text-align:center;line-height:1.1;}
+  .tFace{display:block;width:24px;margin:0 auto;line-height:0;}
+  .tFace svg{width:100%;height:auto;display:block;}
+  .tPat{display:block;height:3px;background:#0002;border-radius:3px;overflow:hidden;}
+  .tPat>span{display:block;height:100%;background:var(--good);animation:tPat 3s infinite;}
+  @keyframes tPat{0%{width:100%}100%{width:35%}}
+  .tHand3{left:44px;top:40px;animation:tPoke 3s infinite;}
+  .tCoin{position:absolute;width:11px;height:11px;border-radius:50%;opacity:0;}
+  .tCoinG{left:60px;top:26px;background:radial-gradient(circle at 35% 30%,#ffe895,#f6c445 55%,#cf9312);
+    animation:tCoinG 3s infinite;}
+  .tCoinS{left:60px;top:26px;background:radial-gradient(circle at 35% 30%,#fff,#dbe1e6 55%,#9aa4ad);
+    animation:tCoinS 3s infinite;}
+  @keyframes tCoinG{0%,30%{opacity:0;transform:translate(0,0)}38%{opacity:1;transform:translate(0,0)}
+    68%{opacity:1;transform:translate(48px,-20px) scale(.7)}75%,100%{opacity:0;transform:translate(48px,-22px) scale(.6)}}
+  @keyframes tCoinS{0%,36%{opacity:0;transform:translate(0,0)}44%{opacity:1;transform:translate(0,0)}
+    74%{opacity:1;transform:translate(40px,22px) scale(.7)}81%,100%{opacity:0;transform:translate(40px,24px) scale(.6)}}
+  /* 4. adonan: bahan diklik satu-satu, terus diaduk */
+  .tHint{color:var(--muted);font-size:10px;}
+  .tIngs{position:absolute;left:5px;top:6px;display:flex;gap:2px;}
+  .tIng{position:relative;width:17px;height:17px;border-radius:5px;background:#fff;border:1.5px solid #0002;
+    display:flex;align-items:center;justify-content:center;font-size:10px;}
+  .tIng i{position:absolute;right:-2px;bottom:-3px;font-size:8px;color:var(--good);font-style:normal;
+    font-weight:900;opacity:0;}
+  .tI1 i{animation:tChk 5s infinite;animation-delay:.30s;}
+  .tI2 i{animation:tChk 5s infinite;animation-delay:.70s;}
+  .tI3 i{animation:tChk 5s infinite;animation-delay:1.10s;}
+  .tI4 i{animation:tChk 5s infinite;animation-delay:1.50s;}
+  .tI5 i{animation:tChk 5s infinite;animation-delay:1.90s;}
+  .tI6 i{animation:tChk 5s infinite;animation-delay:2.30s;}
+  @keyframes tChk{0%{opacity:0;transform:scale(.4)}5%{opacity:1;transform:scale(1.3)}
+    9%,90%{opacity:1;transform:scale(1)}95%,100%{opacity:0}}
+  .tHandIng{top:22px;left:7px;animation:tPokeIngs 5s infinite;}
+  @keyframes tPokeIngs{
+    0%{left:7px;opacity:0}    3%{left:7px;opacity:1}
+    9%{left:7px}              12%{left:26px}
+    17%{left:26px}            20%{left:45px}
+    25%{left:45px}            28%{left:64px}
+    33%{left:64px}            36%{left:83px}
+    41%{left:83px}            44%{left:102px}
+    50%{left:102px;opacity:1} 54%{left:102px;opacity:0}
+    100%{opacity:0}}
+  .tBowl{position:absolute;left:50%;bottom:15px;transform:translateX(-50%);opacity:0;line-height:0;
+    animation:tBowlIn 5s infinite;}
+  .tBowl svg{width:26px;height:26px;display:block;}
+  @keyframes tBowlIn{0%,54%{opacity:0}
+    60%{opacity:1;transform:translateX(-50%) rotate(-10deg)}
+    64%{transform:translateX(-50%) rotate(10deg)} 68%{transform:translateX(-50%) rotate(-10deg)}
+    72%{transform:translateX(-50%) rotate(10deg)} 76%{transform:translateX(-50%) rotate(-10deg)}
+    80%{transform:translateX(-50%) rotate(10deg)} 84%{transform:translateX(-50%) rotate(-6deg)}
+    90%{opacity:1;transform:translateX(-50%) rotate(0)} 100%{opacity:0}}
+  .tBar{position:absolute;left:10px;right:10px;bottom:5px;height:7px;background:#0002;border-radius:5px;overflow:hidden;}
+  .tBar>span{display:block;height:100%;width:0;border-radius:5px;
+    background:linear-gradient(90deg,var(--accent2),var(--accent));animation:tBar 5s infinite;}
+  @keyframes tBar{0%,56%{width:0}90%{width:100%}100%{width:100%}}
+
+  /* 5. saus kacang */
+  .tWide{grid-column:1 / -1;}
+  .tPot{position:absolute;left:16px;top:16px;line-height:0;}
+  .tPot svg{width:30px;height:30px;display:block;}
+  .tSauce{position:absolute;left:58px;top:20px;width:96px;height:9px;background:#0002;border-radius:5px;overflow:hidden;}
+  .tSauce>span{display:block;height:100%;border-radius:5px;
+    background:linear-gradient(90deg,#c99a4a,#8a5a1c);animation:tSauce 4s infinite;}
+  @keyframes tSauce{0%{width:100%}38%{width:6%}52%{width:6%}72%,100%{width:100%}}
+  .tSauceLbl{position:absolute;left:58px;top:32px;font-size:8px;font-weight:900;color:var(--bad);opacity:0;
+    animation:tSauceLbl 4s infinite;}
+  @keyframes tSauceLbl{0%,36%{opacity:0}40%,56%{opacity:1}60%,100%{opacity:0}}
+  .tBtn{position:absolute;right:14px;top:22px;background:#3a7bd5;color:#fff;font-size:9px;font-weight:800;
+    padding:4px 8px;border-radius:6px;box-shadow:0 2px 0 #0004;}
+  .tHandSauce{right:26px;top:34px;opacity:0;animation:tPokeSauce 4s infinite;}
+  @keyframes tPokeSauce{0%,52%{opacity:0;transform:translate(4px,4px)}
+    58%{opacity:1;transform:translate(0,0)}66%{opacity:1;transform:translate(0,0)}72%,100%{opacity:0}}
+
+  @media(max-width:420px){ .tut{grid-template-columns:1fr;} .tWide{grid-column:auto;} }
+
+  /* peragaan: tiruan layar game (wajan kiri, panel minyak kanan) */
+  .demo{position:relative;display:flex;gap:6px;padding:6px;background:#00000018;border-radius:12px;margin:10px 0 4px;}
+  .dPanel{background:linear-gradient(var(--panel),var(--panel2));border-radius:10px;padding:5px;box-shadow:0 2px 0 #0002;}
+  .dWajan{flex:1;}
+  .dOil{width:72px;background:#fff;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .dH{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
+  .dSlots{display:flex;gap:5px;justify-content:center;}
+  .dSlot{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    background:repeating-linear-gradient(90deg,#00000030 0 1px,transparent 1px 5px),
+      repeating-linear-gradient(0deg,#00000030 0 1px,transparent 1px 5px),linear-gradient(#3f2a18,#2b1c0e);
+    box-shadow:inset 0 2px 5px #000a, inset 0 0 0 1.6px #8f9aa3;}
+  .dSlot .bala{width:20px;height:20px;opacity:.28;}
+  .dBar{width:100%;height:6px;background:#0001;border-radius:5px;overflow:hidden;}
+  .dBar>span{display:block;height:100%;width:14%;background:linear-gradient(90deg,#f2c200,#b58900);}
+  .dJerigen{border:2px dashed #d0a94a;border-radius:8px;padding:3px;background:#fff8e2;line-height:0;}
+  .dJerigen svg{width:24px;height:24px;display:block;}
+  /* jerigen yg diseret */
+  .demoTrail{position:absolute;left:22%;right:16%;top:52%;height:0;border-top:3px dashed #d9b46a;opacity:.75;}
+  .demoCan{position:absolute;top:38%;left:80%;transform-origin:70% 70%;z-index:2;line-height:0;
+    animation:demoDrag 3.4s cubic-bezier(.45,0,.3,1) infinite;}
+  .demoCan svg{width:26px;height:26px;display:block;}
+  .demoStream{position:absolute;left:10px;top:22px;width:6px;height:0;border-radius:0 0 4px 4px;
+    background:linear-gradient(#ffd75e,#e0a52a);animation:demoPour 3.4s infinite;}
+  .demoHand{position:absolute;top:60%;left:80%;font-size:18px;z-index:2;
+    animation:demoDrag 3.4s cubic-bezier(.45,0,.3,1) infinite;}
+  .demoTip{text-align:center;font-size:11px;font-weight:800;color:var(--muted);margin-bottom:6px;}
+  @keyframes demoDrag{
+    0%,10%  {left:80%; transform:rotate(0) scale(1);}
+    20%     {left:80%; transform:rotate(0) scale(1.2);}
+    55%     {left:24%; transform:rotate(0) scale(1.2);}
+    64%,86% {left:24%; transform:rotate(-45deg) scale(1.2);}
+    93%     {left:24%; transform:rotate(0) scale(1); opacity:0;}
+    94%     {left:80%; opacity:0;}
+    100%    {left:80%; opacity:1;}
+  }
+  @keyframes demoPour{
+    0%,62%  {height:0; opacity:0;}
+    70%     {height:22px; opacity:1;}
+    84%     {height:22px; opacity:1;}
+    90%,100%{height:0; opacity:0;}
+  }
+
+  /* ===== peraga: LISTRIK / SEKRING ===== */
+  .demoF .dSlot{position:relative;transition:background .2s;}
+  .demoF .dSlot i{position:absolute;font-size:14px;font-style:normal;opacity:0;}
+  .fOff{animation:fDark 3.6s infinite;}
+  .fOff i{animation:fZap 3.6s infinite;}
+  .fOff .bala{animation:fDim 3.6s infinite;}
+  @keyframes fDark{0%,18%{background:#4a3020}24%,66%{background:#1a1208}74%,100%{background:#4a3020}}
+  @keyframes fDim{0%,18%{opacity:.28}24%,66%{opacity:.08}74%,100%{opacity:.28}}
+  @keyframes fZap{0%,18%{opacity:0}24%{opacity:1}30%{opacity:.4}36%{opacity:1}
+    42%{opacity:.4}48%{opacity:1}66%{opacity:1}72%,100%{opacity:0}}
+  .fuseSide{width:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative;}
+  .fBanner{font-size:9px;font-weight:900;color:#fff;background:#c0261c;border-radius:5px;padding:2px 5px;
+    opacity:0;animation:fBan 3.6s infinite;}
+  @keyframes fBan{0%,20%{opacity:0}26%,66%{opacity:1}72%,100%{opacity:0}}
+  .fBtn{font-size:9px;font-weight:900;color:#5a2a00;background:#ffd23f;border-radius:6px;padding:4px 6px;
+    box-shadow:0 2px 0 #0004;opacity:.25;animation:fBtn 3.6s infinite;}
+  @keyframes fBtn{0%,20%{opacity:.25;transform:scale(1)}26%{opacity:1;transform:scale(1)}
+    58%{opacity:1;transform:scale(1)}64%{opacity:1;transform:scale(.9)}70%,100%{opacity:.25;transform:scale(1)}}
+  .fHand{position:absolute;bottom:2px;left:50%;font-size:18px;opacity:0;animation:fHand 3.6s infinite;}
+  @keyframes fHand{0%,48%{opacity:0;transform:translate(4px,6px)}
+    56%{opacity:1;transform:translate(0,0)}64%{opacity:1;transform:translate(0,0)}70%,100%{opacity:0}}
+
+  /* ===== peraga: MALING ===== */
+  .demoT{height:76px;justify-content:flex-start;}
+  .tvThief{position:absolute;left:6%;bottom:14px;line-height:0;animation:tvWalk 4s infinite;}
+  .tvThief svg{width:30px;height:34px;display:block;}
+  @keyframes tvWalk{0%{left:6%;transform:rotate(0)}
+    10%{left:12%;transform:translateY(-4px)}20%{left:20%;transform:translateY(0)}
+    30%{left:30%;transform:translateY(-4px)}40%{left:40%;transform:translateY(0)}
+    50%{left:50%;transform:translateY(-3px)}58%{left:56%;transform:rotate(0)}
+    64%{left:56%;transform:rotate(72deg) translateY(6px)}
+    82%{left:56%;transform:rotate(72deg) translateY(6px);opacity:1}
+    88%{opacity:0}100%{left:6%;opacity:0}}
+  .tvSlap{position:absolute;left:-8px;top:-14px;font-size:26px;opacity:0;animation:tvSlap 4s infinite;}
+  @keyframes tvSlap{0%,56%{opacity:0;transform:translate(-16px,-18px) rotate(-40deg) scale(.6)}
+    62%{opacity:1;transform:translate(4px,2px) rotate(8deg) scale(1.25)}
+    72%{opacity:0;transform:translate(6px,6px) rotate(10deg) scale(1)}100%{opacity:0}}
+  .tvHand{position:absolute;bottom:6px;left:6%;font-size:18px;opacity:0;animation:tvHand 4s infinite;}
+  @keyframes tvHand{0%,48%{opacity:0}52%{left:56%;opacity:1;transform:translate(4px,4px)}
+    58%{left:56%;opacity:1;transform:translate(0,0)}66%,100%{opacity:0}}
+  .tvJar{position:absolute;right:8%;bottom:12px;text-align:center;line-height:1;
+    animation:tvJar 4s infinite;}
+  .tvJar svg{width:26px;height:26px;display:block;margin:0 auto;}
+  @keyframes tvJar{0%,40%{transform:rotate(0)}
+    46%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}54%{transform:rotate(-8deg)}
+    58%{transform:rotate(0)}100%{transform:rotate(0)}}
+  .tvAmt{display:block;font-size:9px;font-weight:900;color:#fff;background:#00000066;border-radius:5px;
+    padding:0 4px;margin-top:2px;}
+  .scoreBox{background:linear-gradient(#3a2718,#241809);border-radius:14px;padding:10px 12px;margin:10px 0;
+    box-shadow:inset 0 0 0 2px #c98d1c55;}
+  .scoreLbl{font-size:10px;font-weight:900;letter-spacing:1.5px;color:#e0a52a;}
+  .scoreVal{font-size:34px;font-weight:900;color:#ffe27a;line-height:1.1;
+    font-variant-numeric:tabular-nums;text-shadow:0 2px 0 #0006;}
+  .scoreSub{font-size:11px;color:#d9c3a0;margin-top:2px;}
+  .stats{background:#fff;border-radius:12px;padding:8px 12px;margin:10px 0;}
+  .st{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:14px;border-bottom:1px solid #0000000f;}
+  .st:last-child{border-bottom:none;}
+  .st b{font-size:15px;}
+  .rec{background:var(--accent2);color:#5a3b00;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;}
+  .diag{background:#fff3e0;border:2px solid var(--accent);border-radius:12px;padding:10px 12px;margin:10px 0;text-align:left;}
+  .dh{font-weight:800;font-size:14px;margin-bottom:5px;color:#a8500c;}
+  .drow{font-size:13px;line-height:1.5;}
+  .recline{text-align:center;font-size:13px;color:var(--muted);font-weight:700;margin-top:6px;}
+  .shop{display:flex;flex-direction:column;gap:8px;margin:10px 0;}
+  .up{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:8px 10px;}
+  .up .ic{font-size:24px;} .up .info{flex:1;} .up .info b{font-size:14px;}
+  .up .info div{font-size:11px;color:var(--muted);}
+  .up .lvl{font-size:11px;color:var(--muted);font-weight:700;}
+  .up button{border:none;border-radius:9px;padding:8px 10px;font-weight:800;color:#fff;background:var(--good);cursor:pointer;min-width:78px;}
+  .up button:disabled{background:#bbb;}
+  .up.life{background:#fff0f0;border:2px solid #e23c3c;}
+  .up.life button{background:#e23c3c;}
+  .up.life button:disabled{background:#bbb;}
+
+  .ingredients{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;}
+  .ing{display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;padding:9px;cursor:pointer;border:2px solid #0001;
+    touch-action:manipulation;-webkit-user-select:none;user-select:none;}
+  .ing.done{border-color:var(--good);background:#eafaee;}
+  .ing .nm{flex:1;font-weight:700;font-size:13px;}
+  .mixbowl{font-size:70px;text-align:center;cursor:pointer;margin:6px 0;}
+  .mixbowl:active{transform:scale(.9) rotate(-6deg);}
+  .mixbar{height:22px;background:#0001;border-radius:12px;overflow:hidden;margin:8px 0;}
+  .mixbar>span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));}
+
+  @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  .shake{animation:shake .3s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  .shakeBig{animation:shakeBig .35s;}
+  @keyframes shakeBig{0%,100%{transform:translate(0,0)}25%{transform:translate(-6px,3px)}75%{transform:translate(6px,-3px)}}
+
+  @media(max-width:640px){
+    .stations{flex-direction:column;gap:6px;}
+    .side{width:auto;flex-direction:row;gap:6px;}
+    .side .res{flex:1;padding:5px;gap:3px;}
+    .warmer{width:auto;flex-direction:row;justify-content:space-around;align-items:center;padding:5px;gap:8px;}
+    .warmer .n{font-size:24px;}
+    .field{gap:6px;padding:6px;}
+
+    /* kartu pembeli diringkas biar keliatan utuh (4 per baris, gak perlu scroll) */
+    .cust{width:calc(25% - 5px);padding:4px;border-radius:10px;}
+    .cust .bubble{font-size:8.5px;min-height:0;padding:2px 4px;margin-bottom:4px;line-height:1.1;}
+    .cust .face{font-size:24px;}
+    .cust .order{font-size:12px;margin:2px 0;}
+    .cust .tags{font-size:8.5px;min-height:0;gap:2px;}
+    .tag{padding:1px 3px;}
+    .pat{height:5px;margin-top:3px;}
+
+    .thiefLane{height:56px;margin:0 2px;}
+    .thief{font-size:32px;}
+    .tipjar{font-size:24px;bottom:6px;}
+    .tipjar .tjAmt{font-size:10px;}
+    .slots{grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:5px;}
+    .slot .em{font-size:22px;width:22px;height:22px;}
+    .panel{padding:6px;gap:5px;}
+    button.act{padding:8px 4px;font-size:12px;}
+    .rh{font-size:12px;} .rh .big{font-size:16px;}
+    .statein{font-size:10px;}
+    #jerigen{font-size:22px;padding:2px;}
+  }
+  /* layar pendek: rapetin, tapi dialog Jermannya tetep ada */
+  @media(max-height:720px){
+    .customers{min-height:128px;}
+    .cust .bubble{font-size:8px;padding:1px 3px;margin-bottom:3px;
+      max-height:24px;overflow:hidden;line-height:1.05;}
+    .cust .bubble:after{display:none;}
+    .cust .face{font-size:20px;}
+    .thiefLane{height:48px;}
+    .thief{font-size:28px;}
+    .tipjar{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== SET GAMBAR (flat vector) — dipakai ulang lewat <use> ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+
+  <!-- PENGGORENGAN (Fritteuse) -->
+  <symbol id="ic-pan" viewBox="0 0 32 32">
+    <rect x="18" y="4" width="10" height="2.6" rx="1.3" fill="#8f9aa3"/>
+    <path d="M19 6.6v4.4" stroke="#8f9aa3" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="3" y="9" width="26" height="19" rx="2.6" fill="#aeb8c0"/>
+    <rect x="3" y="9" width="26" height="19" rx="2.6" fill="none" stroke="#7d8790" stroke-width="1.2"/>
+    <rect x="5.5" y="11.5" width="21" height="11" rx="1.6" fill="#3a2718"/>
+    <rect x="6.6" y="13.6" width="18.8" height="8.6" rx="1.2" fill="#c98d1c"/>
+    <rect x="6.6" y="13.6" width="18.8" height="2.2" rx="1.1" fill="#ffe27a" opacity=".5"/>
+    <path d="M9 12v10M13 12v10M17 12v10M21 12v10" stroke="#7d8790" stroke-width="1" opacity=".55"/>
+    <rect x="5.5" y="24" width="21" height="2.4" rx="1.2" fill="#8f9aa3"/>
+    <circle cx="24.6" cy="25.2" r="1.1" fill="#c0261c"/>
+  </symbol>
+
+  <!-- JERIGEN MINYAK -->
+  <symbol id="ic-oil" viewBox="0 0 32 32">
+    <rect x="6" y="9" width="19" height="19" rx="3" fill="#f0b429"/>
+    <rect x="6" y="9" width="19" height="19" rx="3" fill="none" stroke="#b8790d" stroke-width="1.4"/>
+    <rect x="9" y="13" width="9" height="7" rx="1.2" fill="#fff6d9" opacity=".85"/>
+    <rect x="10.4" y="14.6" width="6" height="1.3" rx=".6" fill="#c98d1c"/>
+    <rect x="10.4" y="17" width="4" height="1.3" rx=".6" fill="#c98d1c"/>
+    <rect x="13" y="4" width="6" height="5" rx="1.4" fill="#8a5f3c"/>
+    <rect x="20" y="11" width="4" height="8" rx="2" fill="none" stroke="#b8790d" stroke-width="1.6"/>
+  </symbol>
+
+  <!-- PANCI SAUS KACANG -->
+  <symbol id="ic-pot" viewBox="0 0 32 32">
+    <rect x="4" y="10" width="24" height="4" rx="2" fill="#9aa4ad"/>
+    <rect x="14" y="6.5" width="4" height="4" rx="1.6" fill="#6b747c"/>
+    <path d="M6 13h20l-2 12a3 3 0 0 1-3 2.6H11A3 3 0 0 1 8 25z" fill="#b9c2c9"/>
+    <path d="M8.6 15h14.8l-1.5 9.6a1.6 1.6 0 0 1-1.6 1.4h-8.6a1.6 1.6 0 0 1-1.6-1.4z" fill="#a8763c"/>
+    <ellipse cx="16" cy="15.4" rx="7.4" ry="1.7" fill="#c08a4a"/>
+    <circle cx="13" cy="15.2" r="1.1" fill="#e0a86a"/>
+    <circle cx="18.6" cy="15.6" r=".9" fill="#e0a86a"/>
+  </symbol>
+
+  <!-- BASKOM ADONAN (lebih tinggi, tanpa pengocok) -->
+  <symbol id="ic-bowl" viewBox="0 0 32 32">
+    <path d="M4 7h24l-2.8 17.6A4 4 0 0 1 21.3 28H10.7a4 4 0 0 1-3.9-3.4z" fill="#dfe6ea"/>
+    <path d="M4 7h24l-2.8 17.6A4 4 0 0 1 21.3 28H10.7a4 4 0 0 1-3.9-3.4z" fill="none" stroke="#b6c0c7" stroke-width="1.1"/>
+    <rect x="2.6" y="5.6" width="26.8" height="3" rx="1.5" fill="#c3ccd2"/>
+    <path d="M6.6 11h18.8l-2 12.4a2.2 2.2 0 0 1-2.2 1.8h-10.4a2.2 2.2 0 0 1-2.2-1.8z" fill="#f0d089"/>
+    <ellipse cx="16" cy="11.4" rx="9.4" ry="1.8" fill="#f7dfa2"/>
+    <circle cx="12.4" cy="16" r="1.5" fill="#5aab3f"/>
+    <circle cx="19.6" cy="18" r="1.3" fill="#f2843c"/>
+    <circle cx="16" cy="14" r="1" fill="#e8963a"/>
+    <circle cx="15" cy="20.6" r="1.2" fill="#3f8c33"/>
+    <circle cx="20" cy="13.6" r=".9" fill="#5aab3f"/>
+  </symbol>
+
+  <!-- PENGHANGAT -->
+  <symbol id="ic-warmer" viewBox="0 0 32 32">
+    <path d="M9 6c0 2-2 2-2 4s2 2 2 4" stroke="#e8721c" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".8"/>
+    <path d="M16 5c0 2-2 2-2 4s2 2 2 4" stroke="#e8721c" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".8"/>
+    <path d="M23 6c0 2-2 2-2 4s2 2 2 4" stroke="#e8721c" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".8"/>
+    <rect x="3" y="17" width="26" height="9" rx="2.4" fill="#c98d1c"/>
+    <rect x="3" y="17" width="26" height="3.4" rx="1.7" fill="#f0b429"/>
+    <rect x="5.5" y="26" width="3" height="3" rx="1" fill="#8a5f3c"/>
+    <rect x="23.5" y="26" width="3" height="3" rx="1" fill="#8a5f3c"/>
+  </symbol>
+
+  <!-- KALENG TRINKGELD -->
+  <symbol id="ic-jar" viewBox="0 0 32 32">
+    <rect x="9" y="4" width="14" height="3" rx="1.4" fill="#9aa4ad"/>
+    <path d="M8 8h16v17a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3z" fill="#cfe3ee" opacity=".75"/>
+    <path d="M8 8h16v17a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3z" fill="none" stroke="#8fb3c7" stroke-width="1.2"/>
+    <circle cx="13" cy="22" r="3" fill="#f6c445" stroke="#cf9312" stroke-width="1"/>
+    <circle cx="19" cy="24" r="2.6" fill="#dbe1e6" stroke="#9aa4ad" stroke-width="1"/>
+    <circle cx="17" cy="19" r="2.2" fill="#f6c445" stroke="#cf9312" stroke-width="1"/>
+    <rect x="10" y="10" width="2" height="8" rx="1" fill="#fff" opacity=".55"/>
+  </symbol>
+
+  <!-- SEKRING -->
+  <symbol id="ic-fuse" viewBox="0 0 32 32">
+    <rect x="7" y="4" width="18" height="24" rx="3" fill="#e6e9ec" stroke="#9aa4ad" stroke-width="1.3"/>
+    <rect x="12" y="8" width="8" height="8" rx="1.6" fill="#c0261c"/>
+    <rect x="12" y="17" width="8" height="7" rx="1.6" fill="#3fae5a"/>
+    <path d="M17.6 9.6l-3.2 4.2h2.4l-1 3 3.4-4.4h-2.6z" fill="#ffd23f"/>
+  </symbol>
+
+  <!-- ===== KARAKTER ===== -->
+  <!-- tukang listrik -->
+  <symbol id="ch-elek" viewBox="0 0 40 46">
+    <rect x="9" y="26" width="22" height="19" rx="3" fill="#f0b429"/>
+    <rect x="9" y="26" width="22" height="19" rx="3" fill="none" stroke="#c98d1c" stroke-width="1.2"/>
+    <rect x="17" y="26" width="6" height="19" fill="#e0a52a"/>
+    <circle cx="20" cy="16" r="9" fill="#e0a878"/>
+    <path d="M8 15a12 12 0 0 1 24 0z" fill="#f6c445"/>
+    <rect x="6" y="14.4" width="28" height="2.6" rx="1.3" fill="#e0a52a"/>
+    <circle cx="16.5" cy="16.5" r="1.3" fill="#2b1d14"/><circle cx="23.5" cy="16.5" r="1.3" fill="#2b1d14"/>
+    <path d="M17 21q3 2 6 0" stroke="#2b1d14" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M23 30l-3.6 5h3l-1.2 4 4.6-6h-3.2z" fill="#ffd23f"/>
+  </symbol>
+  <!-- tukang minyak / supplier -->
+  <symbol id="ch-supp" viewBox="0 0 40 46">
+    <rect x="9" y="26" width="22" height="19" rx="3" fill="#3a7bd5"/>
+    <rect x="9" y="26" width="22" height="19" rx="3" fill="none" stroke="#2b5c9e" stroke-width="1.2"/>
+    <circle cx="20" cy="16" r="9" fill="#f2c9a0"/>
+    <path d="M9 14a11 11 0 0 1 22 0v1H9z" fill="#2b5c9e"/>
+    <rect x="8" y="14" width="24" height="2.4" rx="1.2" fill="#1f4675"/>
+    <circle cx="16.5" cy="17" r="1.3" fill="#2b1d14"/><circle cx="23.5" cy="17" r="1.3" fill="#2b1d14"/>
+    <path d="M17 21.6q3 2 6 0" stroke="#2b1d14" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <rect x="14" y="31" width="12" height="10" rx="1.6" fill="#f0b429" stroke="#b8790d" stroke-width="1"/>
+  </symbol>
+  <!-- polisi -->
+  <symbol id="ch-pol" viewBox="0 0 40 46">
+    <rect x="9" y="26" width="22" height="19" rx="3" fill="#2f5d8a"/>
+    <rect x="9" y="26" width="22" height="19" rx="3" fill="none" stroke="#1f4265" stroke-width="1.2"/>
+    <circle cx="20" cy="16" r="9" fill="#e0a878"/>
+    <path d="M9 14a11 11 0 0 1 22 0v1H9z" fill="#1f4265"/>
+    <rect x="8" y="14" width="24" height="2.6" rx="1.3" fill="#16314c"/>
+    <circle cx="20" cy="9.5" r="2" fill="#ffd23f"/>
+    <circle cx="16.5" cy="17" r="1.3" fill="#2b1d14"/><circle cx="23.5" cy="17" r="1.3" fill="#2b1d14"/>
+    <path d="M17 21.6h6" stroke="#2b1d14" stroke-width="1.3" stroke-linecap="round"/>
+  </symbol>
+  <!-- tetangga (borongan) -->
+  <symbol id="ch-neigh" viewBox="0 0 40 46">
+    <rect x="9" y="26" width="22" height="19" rx="3" fill="#c0392b"/>
+    <path d="M20 4a11 11 0 0 1 11 11v6c0 4-4 5-4 5H13s-4-1-4-5v-6A11 11 0 0 1 20 4z" fill="#8e2f24"/>
+    <circle cx="20" cy="17" r="8" fill="#c98a5e"/>
+    <circle cx="16.8" cy="17" r="1.3" fill="#2b1d14"/><circle cx="23.2" cy="17" r="1.3" fill="#2b1d14"/>
+    <path d="M17 21.6q3 2.2 6 0" stroke="#2b1d14" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+  </symbol>
+  <!-- suporter WM -->
+  <symbol id="ch-fan" viewBox="0 0 40 46">
+    <rect x="9" y="26" width="22" height="19" rx="3" fill="#1a1a1a"/>
+    <rect x="9" y="30" width="22" height="5" fill="#c0261c"/>
+    <rect x="9" y="35" width="22" height="5" fill="#ffd23f"/>
+    <circle cx="20" cy="16" r="9" fill="#f2c9a0"/>
+    <path d="M11 12a9 9 0 0 1 18 0z" fill="#5a3a22"/>
+    <circle cx="16.5" cy="16.5" r="1.3" fill="#2b1d14"/><circle cx="23.5" cy="16.5" r="1.3" fill="#2b1d14"/>
+    <path d="M16.4 20.6q3.6 3.4 7.2 0" stroke="#2b1d14" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  </symbol>
+  <!-- maling -->
+  <symbol id="ch-thief" viewBox="0 0 40 46">
+    <rect x="9" y="26" width="22" height="19" rx="3" fill="#2f3640"/>
+    <circle cx="20" cy="16" r="9" fill="#2f3640"/>
+    <rect x="10.5" y="13.6" width="19" height="5.2" rx="2.6" fill="#e8e2d6"/>
+    <circle cx="16.5" cy="16.2" r="1.5" fill="#2b1d14"/><circle cx="23.5" cy="16.2" r="1.5" fill="#2b1d14"/>
+    <path d="M11 12a9 9 0 0 1 18 0z" fill="#1e242c"/>
+    <path d="M13 30l-3 6" stroke="#2f3640" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <!-- juara / hari terakhir -->
+  <symbol id="ch-flag" viewBox="0 0 40 46">
+    <rect x="17" y="6" width="2.6" height="36" rx="1.3" fill="#6b4a2f"/>
+    <path d="M20 8h15v11H20z" fill="#fff"/>
+    <path d="M20 8h5v5.5h-5zM25 13.5h5V19h-5zM30 8h5v5.5h-5zM20 13.5h5V19h-5z" fill="#2b1d14"/>
+  </symbol>
+  <!-- api / puncak -->
+  <symbol id="ch-fire" viewBox="0 0 40 46">
+    <path d="M20 4c2 7-5 8-5 15a5 5 0 0 0 10 0c0-3-2-4-2-7 4 3 7 7 7 12a10 10 0 0 1-20 0C10 15 18 13 20 4z" fill="#e8721c"/>
+    <path d="M20 20c1 4-3 5-3 9a3 3 0 0 0 6 0c0-2-2-3-3-9z" fill="#ffd23f"/>
+  </symbol>
+
+</defs></svg>
+
+<div id="game">
+  <div class="topbar">
+    <span class="daylabel" id="dayLabel">Hari 1 / 10</span>
+    <span class="stat">💰 <span id="money">0</span></span>
+    <span class="stat" id="hearts">❤️❤️❤️</span>
+    <span class="stat" id="comboStat" style="display:none">🔥 x<span id="comboVal">2</span></span>
+    <span class="stat clock" id="clock">🕚 11:00 AM</span>
+    <button class="menuBtn" id="menuBtn" aria-label="Menu">☰</button>
+    <div class="progwrap"><div class="progbar" id="dayProg"></div></div>
+  </div>
+
+  <div id="banners">
+    <div class="banner rush" id="rushBanner" style="display:none">🔥 JAM RAME — pembeli membludak!</div>
+    <div class="banner fuse" id="fuseBanner" style="display:none">⚡ <b>LISTRIK MATI!</b> <span id="fuseInfo"></span>
+      <button class="fuseBtn" id="fuseBtn">🔌 Nyalain Sekring</button></div>
+  </div>
+
+  <div class="field">
+    <div class="customers" id="customers"></div>
+
+    <div class="thiefLane" id="thiefLane">
+      <div class="thief" id="thiefEl" style="display:none">
+        <span class="body"><svg class="thiefIc"><use href="#ch-thief"/></svg></span>
+        <span class="slap" id="slapEl">✋</span>
+      </div>
+      <div class="tipjar" id="tipjar"><svg class="jarIc"><use href="#ic-jar"/></svg><span class="tj">Trinkgeld</span><span class="tjAmt" id="tipAmt">0,00 €</span></div>
+    </div>
+
+    <div id="charLayer"></div>
+
+    <div class="stations">
+      <div class="panel wajan">
+        <h3><svg class="ic"><use href="#ic-pan"/></svg> Penggorengan <span id="slotInfo"></span></h3>
+        <div id="pourFx" class="pourFx" style="display:none">
+          <span class="can"><svg style="width:30px;height:30px"><use href="#ic-oil"/></svg></span>
+          <span class="stream"></span>
+          <span class="splash"></span>
+        </div>
+        <div class="slots" id="slots"></div>
+        <div style="display:flex;gap:6px">
+          <button class="act" id="fryAll"><span class="bala sm"></span> Goreng Semua</button>
+          <button class="act blue" id="collect"><svg class="ic"><use href="#ic-warmer"/></svg> Ambil Semua</button>
+        </div>
+      </div>
+
+      <div class="warmer" id="warmer">
+        <span class="t"><svg class="ic"><use href="#ic-warmer"/></svg> Penghangat</span>
+        <span class="n" id="warmCount">0</span>
+      </div>
+
+      <div class="panel side">
+        <div class="res">
+          <div class="rh"><span><svg class="ic big"><use href="#ic-bowl"/></svg> Adonan</span><span id="adoCount">0</span></div>
+          <div class="bar ado"><span id="adoBar"></span></div>
+          <button class="act" id="makeBatter"><svg class="ic"><use href="#ic-bowl"/></svg> Buat Adonan</button>
+        </div>
+        <div class="res">
+          <div class="rh"><span><svg class="ic big"><use href="#ic-pot"/></svg> Saus</span><span id="scCount">0/0</span></div>
+          <div class="bar sc"><span id="scBar"></span></div>
+          <div class="statein" id="scState">panas</div>
+          <button class="act blue" id="reheat">🔥 Panaskan</button>
+        </div>
+        <div class="res" id="oilCard" style="display:none">
+          <div class="rh"><span><svg class="ic big"><use href="#ic-oil"/></svg> Minyak</span><span id="oilPct">100%</span></div>
+          <div class="bar oil"><span id="oilBar"></span></div>
+          <div class="statein" id="oilState">cukup</div>
+          <div id="jerigen"><svg class="jerIc"><use href="#ic-oil"/></svg></div>
+          <div class="statein">seret ke penggorengan buat isi</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"><div class="card" id="card"></div></div>
+<div class="overlay" id="modal" style="display:none"><div class="card" id="modalCard"></div></div>
+<div class="overlay" id="menu" style="display:none"><div class="card" id="menuCard"></div></div>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+// Euro, format Jerman: 5,80 €
+const rupiah=n=>Number(n).toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+const cents=n=>Math.round(n*100)/100;
+
+/* ---------- state ---------- */
+const G={
+  day:0, money:0, hearts:3, running:false,
+  timeLeft:0, dayLen:60, served:0, target:0,
+  slots:[], warm:0, adonan:0, saus:0,
+  reheating:false, reheatT:0,
+  oil:100, oilOn:false, pouring:false, pourT:0, pourFrom:0,
+  thiefOn:false, thief:null, thiefRate:0, thiefHit:false, tipToday:0, livesBought:0,
+  paused:false, sfxOn:true, musicOn:true,
+  stats:{porsi:0,served:0,walkouts:0,burnt:0,fuseDown:0,oilDown:0,stolen:0,stolenAmt:0,bestCombo:0,
+         tipTotal:0, earned:0},   // earned = total masuk (bukan sisa kas) -> beli upgrade gak ngurangin skor
+  customers:[], spawnTimer:0, spawnEvery:4, custId:0,
+  batterOpen:false, combo:0,
+  rushOn:false, rushStart:0, rushEnd:0,
+  blackoutRate:0, blackoutN:0, powerOut:false,
+  borongan:false, festival:false,
+  up:{wajan:1,kompor:0,minyak:0,tangki:0,panci:0,baskom:0,etalase:0,pegawai:0,spanduk:0,speaker:0},
+};
+const PRICE=1.50;  // € per porsi bala2
+const OILUSE=4.5, OILMIN=12;         // minyak: kepake per goreng; di bawah OILMIN gak bisa goreng
+const OILMAX=()=>100+G.up.tangki*70; // tangki lebih gede = jarang ngisi
+const POURTIME=1.0;                  // durasi animasi nuang minyak
+const SLOTCOUNT=()=>G.up.wajan+2;     // mulai 3 wajan
+const MAXVISIBLE=()=>4+G.up.etalase;
+const COOKTIME=()=>3.0-G.up.kompor*0.3;
+const BURNWINDOW=()=>2.8+G.up.minyak*0.7;
+const SAUCECAP=()=>10+G.up.panci*3;
+const REHEATTIME=()=>3-G.up.panci*0.5;
+const BATCH=()=>14+G.up.baskom*4;
+const MIXTARGET=()=>Math.max(5,10-G.up.baskom*2);
+const PATIENCE=()=>1+G.up.speaker*0.22;
+const TIPMULT=()=>1+G.up.spanduk*0.18;
+const COMBOMULT=()=>1+Math.min(G.combo*0.05,0.5);
+const HELPERDELAY=()=>1.6;           // pegawai gak instan
+
+const UPGRADES=[
+  {k:"wajan", ic:"🍳", name:"Penggorengan Lebih Besar", desc:"+1 slot penggorengan", max:5, cost:l=>31+l*27},
+  {k:"kompor",ic:"🔥", name:"Kompor Ngegas",     desc:"Menggoreng lebih cepat", max:4, cost:l=>36+l*31},
+  {k:"minyak",ic:"✨", name:"Minyak Berkualitas",desc:"Lebih lama sebelum gosong", max:4, cost:l=>26+l*24},
+  {k:"tangki",ic:"🛢️", name:"Tangki Minyak Besar",desc:"Kapasitas minyak lebih gede — gak sering-sering ngisi", max:3, cost:l=>29+l*24},
+  {k:"panci", ic:"🥜", name:"Panci Saus Besar",  desc:"Saus lebih banyak & cepat panas", max:4, cost:l=>26+l*21},
+  {k:"baskom",ic:"🥣", name:"Baskom & Mixer",    desc:"Sekali buat = adonan lebih banyak", max:4, cost:l=>31+l*27},
+  {k:"etalase",ic:"🪟",name:"Etalase Lega",      desc:"+1 antrean pembeli", max:4, cost:l=>31+l*27},
+  {k:"pegawai",ic:"🧑‍🍳",name:"Rekrut Pegawai",  desc:"Bantu pindahin bala2 matang ke penghangat (agak telat, gak instan). Investasi gede!", max:1, cost:l=>235},
+  {k:"spanduk",ic:"🚩", name:"Spanduk Promosi",  desc:"Trinkgeld pembeli lebih besar", max:3, cost:l=>26+l*24},
+  {k:"speaker",ic:"🔊", name:"Speaker Dangdut",  desc:"Pembeli lebih sabar", max:3, cost:l=>26+l*21},
+];
+
+/* ================= MESIN AUDIO =================
+   - 1 buffer noise dipakai ulang (dulu bikin buffer baru tiap suara -> berat di HP)
+   - bus terpisah: musik & sfx, lewat limiter -> gak pernah pecah walau banyak suara barengan
+   - semua suara dijadwal pakai jam Web Audio (bukan setTimeout) -> presisi
+================================================= */
+let actx=null, busSfx=null, busMusic=null, noiseBuf=null;
+function audio(){
+  if(typeof window==="undefined")return null;
+  if(!actx){
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) return null;
+    actx=new AC();
+    // limiter: nahan puncak biar gak clipping pas jam rame (banyak suara nubruk)
+    const lim=actx.createDynamicsCompressor();
+    lim.threshold.value=-6; lim.knee.value=8; lim.ratio.value=14;
+    lim.attack.value=0.003; lim.release.value=0.18;
+    const master=actx.createGain(); master.gain.value=0.85;
+    busSfx=actx.createGain();   busSfx.gain.value=1.0;
+    busMusic=actx.createGain(); busMusic.gain.value=0.42;   // musik duduk di belakang
+    busSfx.connect(master); busMusic.connect(master);
+    master.connect(lim); lim.connect(actx.destination);
+    // noise 1 detik, dibikin SEKALI, dipakai ulang selamanya
+    const len=Math.floor(actx.sampleRate);
+    noiseBuf=actx.createBuffer(1,len,actx.sampleRate);
+    const d=noiseBuf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+  }
+  if(actx.state==="suspended") actx.resume();
+  return actx;
+}
+function noise(dur,freq,q,vol,sweepTo,bus,when){
+  const a=audio(); if(!a||!noiseBuf) return;
+  const t=when||a.currentTime;
+  const src=a.createBufferSource(); src.buffer=noiseBuf; src.loop=true;
+  src.playbackRate.value=0.85+Math.random()*0.3;      // variasi kecil, gak monoton
+  const bp=a.createBiquadFilter(); bp.type="bandpass";
+  bp.frequency.setValueAtTime(freq,t);
+  if(sweepTo) bp.frequency.linearRampToValueAtTime(sweepTo,t+dur);
+  bp.Q.value=q;
+  const g=a.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.006);   // attack halus
+  g.gain.exponentialRampToValueAtTime(0.0008,t+dur);  // decay
+  src.connect(bp);bp.connect(g);g.connect(bus||busSfx);
+  src.start(t); src.stop(t+dur+0.03);
+}
+function tone(f,dur,vol,wave,rampTo,bus,when){
+  const a=audio(); if(!a) return;
+  const t=when||a.currentTime;
+  const o=a.createOscillator(), g=a.createGain();
+  o.type=wave||"triangle";
+  o.frequency.setValueAtTime(f,t);
+  if(rampTo) o.frequency.exponentialRampToValueAtTime(Math.max(20,rampTo),t+dur);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.008);   // attack -> hilangin bunyi "klik"
+  g.gain.exponentialRampToValueAtTime(0.0008,t+dur);
+  o.connect(g); g.connect(bus||busSfx);
+  o.start(t); o.stop(t+dur+0.03);
+}
+/* ---------- setelan (kesimpen di HP) ---------- */
+function loadSettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem("bala2_set"));
+    if(s){ G.sfxOn=s.sfxOn!==false; G.musicOn=s.musicOn!==false; }
+  }catch(e){}
+}
+function saveSettings(){
+  try{ localStorage.setItem("bala2_set",JSON.stringify({sfxOn:G.sfxOn,musicOn:G.musicOn})); }catch(e){}
+}
+
+/* ---------- musik latar: penjadwal look-ahead (anti-ngedrift) ----------
+   setInterval doang bakal geser-geser & tersendat kalau browser sibuk.
+   Ini nyicil jadwal not ke depan pakai jam Web Audio -> ketukannya rapi. */
+let musicTimer=null, musicStep=0, nextNote=0;
+const MUSIC=[196.00,220.00,261.63,196.00,174.61,196.00,220.00,146.83]; // pentatonis, anteng
+const STEP=0.30, AHEAD=0.15;
+function scheduleMusic(){
+  const a=audio(); if(!a) return;
+  if(!G.musicOn){ stopMusic(); return; }
+  while(nextNote < a.currentTime + AHEAD){
+    const n=MUSIC[musicStep%MUSIC.length];
+    tone(n,.30,.030,"triangle",null,busMusic,nextNote);              // melodi
+    if(musicStep%8===0) tone(n/2,.40,.045,"sine",null,busMusic,nextNote);   // bass
+    if(musicStep%4===2) noise(.04,3200,1.4,.020,null,busMusic,nextNote);    // ketukan
+    musicStep++;
+    nextNote += STEP;
+  }
+}
+function startMusic(){
+  if(musicTimer || !G.musicOn) return;
+  const a=audio(); if(!a) return;
+  musicStep=0; nextNote=a.currentTime+0.06;
+  scheduleMusic();
+  musicTimer=setInterval(scheduleMusic,40);
+}
+function stopMusic(){ if(musicTimer){ clearInterval(musicTimer); musicTimer=null; } }
+
+/* rem suara: satu jenis bunyi gak boleh nubruk dirinya sendiri terlalu rapat.
+   Pas jam rame, dulu 5 pembeli dateng bareng = 5 bunyi numpuk jadi "brak". */
+const SFXGAP={arrive:.09,ding:.06,tick:.05,tickHi:.05,coin:.05,serve:.05,fry:.07,plink:.05,chop:.03};
+const lastAt={};
+function sfx(type){
+  try{
+    if(typeof window==="undefined" || !G.sfxOn) return;
+    const a=audio(); if(!a) return;
+    const t=a.currentTime;
+    const gap=SFXGAP[type];
+    if(gap && lastAt[type] && t-lastAt[type] < gap) return;   // ditahan, biar gak numpuk
+    lastAt[type]=t;
+
+    switch(type){
+      case "fry":   noise(.45,2800,.7,.10,1600); break;              // ceees~ masuk minyak
+      case "pour":  noise(POURTIME,700,.5,.10,300); tone(180,.5,.05,"sine",120); break; // glug glug
+      case "ding":  tone(880,.13,.13,"sine",1180); break;
+      // nada naik 1 semitone tiap combo
+      case "serve": {const st=Math.pow(1.0595,Math.min(G.combo,14));
+        tone(620*st,.11,.16,"triangle",1050*st);} break;
+      case "coin":  tone(1046,.08,.11,"square");
+                    tone(1568,.09,.09,"square",null,null,t+.07); break;
+      case "burnt": noise(.35,500,.4,.12,120); tone(85,.28,.12,"sawtooth"); break;
+      case "leave": tone(240,.3,.14,"sine",120); break;
+      case "combo": tone(784,.1,.13,"square",1046); break;
+      case "arrive":tone(1320,.07,.07,"sine");
+                    tone(990,.09,.06,"sine",null,null,t+.08); break;
+      case "click": tone(1500,.04,.12,"square");
+                    tone(500,.06,.10,"square",null,null,t+.04); break;   // sekring nyeklek
+      case "chop":  noise(.09,1500,1.2,.09); break;
+      case "plak":  noise(.05,2400,.6,.28,600); tone(240,.07,.16,"square",90); break;
+      case "sneak": tone(180,.16,.06,"sine",120);
+                    tone(150,.16,.05,"sine",100,null,t+.16); break;
+      // sirene maling dateng
+      case "alert": tone(440,.16,.17,"square",330);
+                    tone(330,.22,.17,"square",247,null,t+.17);
+                    tone(440,.16,.14,"square",330,null,t+.40); break;
+      case "tick":  tone(760,.045,.09,"square"); break;               // langkah maling
+      case "tickHi":tone(1180,.05,.15,"square",900); break;           // udah deket kaleng!
+      case "plink": tone(1760,.09,.07,"sine",2200); break;            // koin perak masuk kaleng
+    }
+  }catch(e){}
+}
+function shakeScreen(){const g=$("game");if(!g)return;g.classList.remove("shakeBig");void g.offsetWidth;g.classList.add("shakeBig");}
+/* koin terbang: EMAS (penjualan) -> kas di atas | PERAK (Trinkgeld) -> kaleng tip */
+function flyCoins(fromEl,n,kind){
+  const silver = kind==="silver";
+  const target = silver ? $("tipjar") : $("money");
+  if(!target||!fromEl||!fromEl.getBoundingClientRect) return;
+  const a=fromEl.getBoundingClientRect(), b=target.getBoundingClientRect();
+  const x0=a.left+a.width/2, y0=a.top+a.height/2;
+  const dx=(b.left+b.width/2)-x0, dy=(b.top+b.height/2)-y0;
+  for(let i=0;i<n;i++){
+    const c=document.createElement("div");
+    c.className="coin "+(silver?"silver":"gold");
+    c.style.left=x0+"px"; c.style.top=y0+"px";
+    document.body.appendChild(c);
+    c.style.transform=`translate(${Math.random()*26-13}px,${Math.random()*16-22}px)`;
+    const delay=40+i*55;
+    setTimeout(()=>{ c.style.transform=`translate(${dx}px,${dy}px) scale(.45)`; c.style.opacity="0.15"; },delay);
+    setTimeout(()=>c.remove(),delay+640);
+  }
+  const bumpEl = silver ? $("tipjar") : $("money");
+  setTimeout(()=>{
+    bumpEl.classList.remove(silver?"plink":"bump"); void bumpEl.offsetWidth;
+    bumpEl.classList.add(silver?"plink":"bump");
+  }, silver?420:0);
+}
+function showFloat(anchor,txt,col){
+  const host=$("customers");if(!host)return;
+  const f=document.createElement("div");
+  f.className="floatp";f.textContent=txt;f.style.color=col;
+  if(anchor){f.style.left=(anchor.offsetLeft+anchor.offsetWidth/2)+"px";f.style.top=anchor.offsetTop+"px";}
+  else{f.style.left="50%";f.style.top="10px";}
+  host.appendChild(f);setTimeout(()=>f.remove(),1000);
+}
+/* karakter yg muncul & ngomong */
+let charTimer=null;
+/* karakter: "#ch-xxx" = gambar SVG, selain itu dianggap emoji biasa */
+function charArt(who,cls){
+  return who && who.charAt(0)==="#"
+    ? `<svg class="${cls}"><use href="${who}"/></svg>`
+    : `<span class="${cls}">${who}</span>`;
+}
+function showChar(who,say,ms){
+  const layer=$("charLayer");if(!layer)return;
+  layer.innerHTML=`<div class="char">${charArt(who,"who")}<span class="say">${say}</span></div>`;
+  clearTimeout(charTimer);
+  charTimer=setTimeout(()=>{layer.innerHTML="";},ms||3000);
+}
+
+/* ---------- clock ---------- */
+function fmtClock(){
+  const frac=G.dayLen>0?Math.min(1,Math.max(0,(G.dayLen-G.timeLeft)/G.dayLen)):0;
+  const t=11+frac*12;
+  let h=Math.floor(t),m=Math.floor((t-h)*60);
+  const ap=h>=12?"PM":"AM";let h12=h%12;if(h12===0)h12=12;
+  return `${h12}:${m<10?"0"+m:m} ${ap}`;
+}
+function updateClock(){
+  const el=$("clock");if(!el)return;
+  el.textContent="🕚 "+fmtClock();
+  el.classList.toggle("rush",G.rushOn===true);
+}
+
+/* ---------- frying ---------- */
+function canFry(){ return !(G.oilOn && G.oil<OILMIN); }
+function buildSlots(){
+  const n=SLOTCOUNT();
+  while(G.slots.length<n) G.slots.push({state:"empty",t:0,off:false,offT:0,helper:0});
+  G.slots.length=n;
+  G.slots.forEach(s=>{s.state="empty";s.t=0;s.off=false;s.offT=0;s.helper=0;});
+  G.powerOut=false;
+  renderSlots();
+}
+function renderSlots(){
+  const el=$("slots");if(!el)return;
+  el.innerHTML="";
+  const cook=COOKTIME();
+  G.slots.forEach((s,i)=>{
+    const d=document.createElement("div");
+    d.className="slot "+s.state+(s.off?" off":"");
+    d.dataset.i=i;
+    let ring="";
+    if(s.state==="cooking"){
+      const p=Math.min(1,s.t/cook),deg=p*360,c=p<.6?"#e8a11c":"#6fbf3f";
+      ring=`<div class="ring" style="background:conic-gradient(${c} ${deg}deg,#0000 ${deg}deg);opacity:.85"></div>`;
+    }
+    let lbl="";
+    if(s.state==="ready")lbl='<span class="lbl ready">MATANG</span>';
+    if(s.state==="burnt")lbl='<span class="lbl burnt">GOSONG</span>';
+    d.innerHTML=`${ring}<span class="em bala"></span>${lbl}`;
+    el.appendChild(d);
+  });
+  const busy=G.slots.filter(s=>s.state!=="empty").length;
+  $("slotInfo").textContent=`(${busy}/${G.slots.length})`;
+}
+function fryOne(i){
+  const s=G.slots[i];if(!s)return false;
+  if(s.off||s.state!=="empty")return false;
+  if(G.adonan<1)return false;
+  if(!canFry())return false;
+  G.adonan--;s.state="cooking";s.t=0;
+  if(G.oilOn) G.oil=Math.max(0,G.oil-OILUSE);
+  return true;
+}
+function clickSlot(i){
+  const s=G.slots[i];if(!s)return;
+  if(s.off){ flashFuse(); return; }
+  if(s.state==="burnt"){ s.state="empty";s.t=0;renderSlots();return; }
+  if(s.state==="ready"){ toWarmer(i); return; }   // klik = pindah ke penghangat
+  if(s.state==="empty"){
+    if(!canFry()){ oilWarn(); return; }
+    if(G.adonan<1){ flashEl("makeBatter"); return; }
+    if(fryOne(i)){ sfx("fry"); updateRes(); renderSlots(); }
+  }
+}
+function collectAll(){
+  let n=0;
+  for(let i=0;i<G.slots.length;i++){ if(G.slots[i].state==="ready" && !G.slots[i].off){ if(toWarmer(i)) n++; } }
+  return n;
+}
+function fryAll(){
+  if(!canFry()){ oilWarn(); return; }
+  if(G.adonan<1){ flashEl("makeBatter"); return; }
+  let n=0;
+  for(let i=0;i<G.slots.length;i++){ if(fryOne(i)) n++; }
+  if(n>0) sfx("fry");
+  updateRes(); renderSlots();
+}
+function toWarmer(i){
+  const s=G.slots[i];
+  if(!s||s.state!=="ready"||s.off) return false;
+  s.state="empty";s.t=0;s.helper=0;
+  G.warm++;
+  sfx("ding");updateHUD();renderSlots();
+  return true;
+}
+function refillOil(){
+  if(!G.oilOn) return false;
+  if(G.pouring) return false;
+  if(G.oil>=OILMAX()) return false;
+  G.pouring=true; G.pourT=0; G.pourFrom=G.oil;
+  const fx=$("pourFx"); if(fx) fx.style.display="flex";
+  sfx("pour");
+  return true;
+}
+function finishPour(){
+  G.pouring=false; G.oil=OILMAX();
+  const fx=$("pourFx"); if(fx) fx.style.display="none";
+  sfx("ding"); updateRes();
+}
+function oilWarn(){
+  const j=$("jerigen");
+  if(j){j.classList.remove("shake");void j.offsetWidth;j.classList.add("shake");}
+  showChar("#ic-oil","Minyak habis! Seret jerigen ke penggorengan buat ngisi.",2600);
+}
+function flashEl(id){const b=$(id);if(b){b.classList.remove("shake");void b.offsetWidth;b.classList.add("shake");}}
+function flashFuse(){flashEl("fuseBtn");}
+
+/* ---------- pencuri Trinkgeld ---------- */
+function spawnThief(){
+  if(G.thief||G.thiefHit) return;
+  const tMax=5.0;                       // waktu dia nyampe kaleng tip
+  G.thief={
+    t:tMax, tMax,
+    phase:Math.random()*6.28,           // biar tiap maling belok-beloknya beda
+    wob:2.5+Math.random()*2.5,          // seberapa sering belok
+    amp:12+Math.random()*10,            // seberapa lebar beloknya
+    hop:0.6+Math.random()*0.8,
+    tickT:0,
+  };
+  const el=$("thiefEl");
+  el.classList.remove("hit");
+  el.style.display="block";
+  el.style.left="0%";
+  sfx("alert");                       // sirene: MALING DATENG
+  setTimeout(()=>sfx("sneak"),260);
+  updateThief();
+}
+function updateThief(){
+  const el=$("thiefEl"); const th=G.thief;
+  if(!el||!th) return;
+  const p=1-Math.max(0,th.t/th.tMax);                // 0 = jauh, 1 = nyampe kaleng
+  // maju sambil belok-belok: naik-turun + maju-mundur dikit
+  const weaveX=Math.sin(p*Math.PI*th.wob*2+th.phase)*3.2;      // %
+  const weaveY=Math.sin(p*Math.PI*th.wob*2+th.phase+1.1)*th.amp; // px
+  const bobY=Math.abs(Math.sin(p*Math.PI*10*th.hop))*5;
+  el.style.left=Math.max(0,Math.min(84,p*82+weaveX))+"%";
+  el.style.bottom=Math.max(4,Math.min(40,16+weaveY+bobY))+"px";
+  $("tipjar").classList.toggle("grab", p>0.75);      // kalengnya mulai goyang
+}
+function shooThief(){
+  if(!G.thief||G.thiefHit) return;
+  G.thief=null; G.thiefHit=true;
+  const el=$("thiefEl");
+  el.classList.add("hit");
+  sfx("plak"); shakeScreen();
+  $("tipjar").classList.remove("grab");
+  showChar("😤","Hei! Pergi sana!",1400);
+  setTimeout(()=>{ el.style.display="none"; el.classList.remove("hit"); G.thiefHit=false; },420);
+}
+function stealTip(){
+  const amount=cents(G.tipToday);           // dia gasak isi kaleng hari itu
+  G.money=Math.max(0,cents(G.money-amount));
+  G.tipToday=0;
+  G.thief=null; G.combo=0;
+  const el=$("thiefEl"); el.style.display="none"; el.classList.remove("hit");
+  $("tipjar").classList.remove("grab");
+  shakeScreen();
+  if(amount>0){
+    G.stats.stolen++; G.stats.stolenAmt+=amount;
+    sfx("burnt");
+    showFloat(null,"🥷 Kaleng Trinkgeld digasak! -"+rupiah(amount),"var(--bad)");
+    showChar("😱","Yah, satu kaleng Trinkgeld kebawa kabur!",2400);
+  } else {
+    sfx("leave");
+    showChar("😅","Untung kalengnya lagi kosong…",1800);
+  }
+  updateHUD();
+}
+function resetFuse(){
+  if(!G.powerOut)return;
+  G.slots.forEach(s=>{if(s.off){s.off=false;s.offT=0;}});
+  G.powerOut=false;
+  $("fuseBanner").style.display="none";
+  renderSlots();sfx("click");
+}
+function tripPower(){
+  if(G.powerOut)return;
+  const avail=[];G.slots.forEach((s,i)=>{if(!s.off)avail.push(i);});
+  const n=Math.min(G.blackoutN,avail.length);
+  for(let k=0;k<n;k++){
+    const i=avail.splice(Math.floor(Math.random()*avail.length),1)[0];
+    G.slots[i].off=true;G.slots[i].offT=Infinity;
+  }
+  if(n>0){
+    G.powerOut=true;
+    $("fuseInfo").textContent=n+" wajan padam";
+    $("fuseBanner").style.display="flex";
+    sfx("burnt");shakeScreen();renderSlots();
+  }
+}
+
+/* ---------- customers ---------- */
+/* ---------- pembeli digambar sendiri (flat vector), bukan emoji ---------- */
+const SKIN=["#f7d9bd","#f2c9a0","#e0a878","#c98a5e","#a06a45","#7a4a2e"];
+const HAIR=["#2b1d14","#5a3a22","#c08a3e","#e2dccf","#8a4a2a","#1a1a1a","#b0553a"];
+const SHIRT=["#3a7bd5","#c0392b","#2aa76a","#8a5a2b","#6b3fa0","#d98b2b","#2f5d8a","#c94f7c","#3f8c33"];
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+function avatarSVG(lang,kapal){
+  const sk=pick(SKIN), hc=pick(HAIR), sh=pick(SHIRT);
+  const style=Math.floor(Math.random()*5);
+  let head="";
+  if(kapal){                                  // anak kapal: topi pelaut
+    head=`<path d="M10 13a10 10 0 0 1 20 0z" fill="#1f4675"/>
+          <rect x="8" y="12.6" width="24" height="2.8" rx="1.4" fill="#fff"/>
+          <rect x="18" y="7" width="4" height="3" rx="1.4" fill="#ffd23f"/>`;
+  } else if(lang==="id" && Math.random()<0.5){ // kerudung
+    head=`<path d="M20 5a11 11 0 0 1 11 11v8c0 4-4 5-4 5H13s-4-1-4-5v-8A11 11 0 0 1 20 5z" fill="${hc}"/>`;
+  } else if(style===0){                        // rambut pendek
+    head=`<path d="M10 15a10 10 0 0 1 20 0v1c-2-3.4-5.4-4.6-10-4.6S12 12.6 10 16z" fill="${hc}"/>`;
+  } else if(style===1){                        // rambut panjang
+    head=`<path d="M9 16a11 11 0 0 1 22 0v12c0 1.6-1.4 2-2.6 1.2L28 21c-1-4-3.6-6-8-6s-7 2-8 6l-.4 8.2C10.4 30 9 29.6 9 28z" fill="${hc}"/>`;
+  } else if(style===2){                        // cepol
+    head=`<circle cx="20" cy="5.5" r="3.4" fill="${hc}"/>
+          <path d="M10 15a10 10 0 0 1 20 0v1c-2-3.4-5.4-4.6-10-4.6S12 12.6 10 16z" fill="${hc}"/>`;
+  } else if(style===3){                        // botak/tipis + jenggot
+    head=`<path d="M11 14.5a9 9 0 0 1 18 0c-2-2.6-5-3.6-9-3.6s-7 1-9 3.6z" fill="${hc}"/>
+          <path d="M12.5 20c1 5 4 7.4 7.5 7.4s6.5-2.4 7.5-7.4c-2 2.6-4.4 3.6-7.5 3.6s-5.5-1-7.5-3.6z" fill="${hc}" opacity=".9"/>`;
+  } else {                                     // topi
+    head=`<path d="M9.5 14a10.5 10.5 0 0 1 21 0z" fill="${hc}"/>
+          <rect x="7.5" y="13.4" width="25" height="2.6" rx="1.3" fill="${hc}" opacity=".75"/>`;
+  }
+  return `<svg class="av" viewBox="0 0 40 40">
+    <path d="M6 40v-4a8 8 0 0 1 8-8h12a8 8 0 0 1 8 8v4z" fill="${sh}"/>
+    <rect x="17" y="24" width="6" height="6" fill="${sk}"/>
+    <circle cx="20" cy="17" r="9.4" fill="${sk}"/>
+    ${head}
+    <circle cx="16.6" cy="17.4" r="1.35" fill="#2b1d14"/>
+    <circle cx="23.4" cy="17.4" r="1.35" fill="#2b1d14"/>
+    <path d="M17.2 21.6q2.8 2 5.6 0" stroke="#2b1d14" stroke-width="1.25" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+function makeCustomer(){
+  const d=G.day;
+  // Ini di Jerman: mayoritas pembeli orang Jerman.
+  const r=Math.random();
+  const kapal = r<0.05;                 // pelaut kapal pesiar Indo — jarang, tip gede
+  const indo  = !kapal && r<0.22;       // orang Indo yg tinggal di Jerman
+  const lang  = kapal||indo ? "id" : "de";
+  const borongan=(G.borongan&&Math.random()<0.15)||kapal;
+  let qty;
+  if(kapal) qty=5+Math.floor(Math.random()*4);              // 5–8, rombongan kapal
+  else if(borongan) qty=4+Math.floor(Math.random()*3);      // 4–6
+  else qty=1+Math.floor(Math.random()*Math.min(3+Math.floor(d*0.15),4));  // hari awal gak lagi cuma 1-2 porsi
+  const kacang=Math.random()<Math.min(.55+d*0.03,.9);
+  const bungkus=d>=3&&Math.random()<Math.min(.14+d*0.03,.5);
+  const buru=d>=2&&!borongan&&Math.random()<Math.min(.05+d*0.02,.22);
+  let pat=(12+qty*1.9)*PATIENCE();
+  if(buru)pat*=0.75; if(bungkus)pat*=1.2; if(borongan)pat*=1.5; if(kapal)pat*=1.4;
+  pat/=(1+d*0.02);
+  const c={id:++G.custId,
+    face:avatarSVG(lang,kapal),
+    qty,kacang,bungkus,buru,borongan,kapal,lang,pat,patMax:pat};
+  c.say=custSay(c);
+  G.customers.push(c);
+  sfx("arrive");
+  renderCustomers();
+}
+function custSay(c){
+  if(c.kapal){
+    const g=["Bang","Mas","Bang"][Math.floor(Math.random()*3)];
+    let s=`${g}! Kita anak kapal pesiar, kangen bala2 — borong ${c.qty}`;
+    if(c.kacang)s+=" pake bumbu kacang";
+    if(c.bungkus)s+=", dibungkus";
+    return s+" ya!";
+  }
+  if(c.lang==="id"){
+    const g=["Bang","Mas","Kak","Bu","Pak"][Math.floor(Math.random()*5)];
+    let s=c.borongan?`${g}, borong ${c.qty}`:`${g}, bala2 ${c.qty}`;
+    const ex=[];
+    if(c.kacang)ex.push("pake bumbu kacang");
+    if(c.bungkus)ex.push("dibungkus ya");
+    if(c.borongan)ex.push("buat acara");
+    if(ex.length)s+=" "+ex.join(", ");
+    s+=c.buru?" — buruan ya!":"!";
+    return s;
+  }
+  // Deutsch
+  const g=["Moin","Moin moin","Hallo","Guten Tag","Entschuldigung"][Math.floor(Math.random()*5)];
+  let s=`${g}, ${c.qty}x Bala2`;
+  const ex=[];
+  if(c.kacang)ex.push("mit Erdnusssauce");
+  if(c.bungkus)ex.push("zum Mitnehmen");
+  if(c.borongan)ex.push("für eine Feier");
+  if(ex.length)s+=" "+ex.join(", ");
+  s+=c.buru?" — schnell, bitte!":", bitte!";
+  return s;
+}
+function sauceNeed(c){ return c.kacang ? Math.ceil(c.qty/2) : 0; }   // 1 centong per 2 porsi
+function canServe(c){ return G.warm>=c.qty && G.saus>=sauceNeed(c); }
+function renderCustomers(){
+  const el=$("customers");if(!el)return;
+  el.innerHTML="";
+  G.customers.forEach(c=>{
+    const d=document.createElement("div");
+    d.className="cust"+(canServe(c)?" can":"")+(c.kapal?" kapal":"");
+    d.dataset.id=c.id;
+    let tags="";
+    if(c.kacang)tags+='<span class="tag kacang">🥜 kacang</span>';   // ini mekanik: butuh saus
+    if(c.buru)tags+='<span class="tag buru">⚡ buru2</span>';
+    /* "bungkus" bukan mekanik — cukup muncul di omongan pembeli ("zum Mitnehmen") */
+    if(c.borongan&&!c.kapal)tags+='<span class="tag borongan">🛒 borongan</span>';
+    if(c.kapal)tags+='<span class="tag kapal">⚓ anak kapal — tip gede!</span>';
+    d.innerHTML=`<div class="bubble">${c.say}</div>
+      <div class="face">${c.face}</div>
+      <div class="order"><span class="bala sm"></span> x${c.qty}</div>
+      <div class="tags">${tags||'<span class="tag">biasa</span>'}</div>
+      <div class="pat"><div class="patbar" id="pat${c.id}"></div></div>`;
+    el.appendChild(d);
+    const pb=d.querySelector(".patbar"),r=c.pat/c.patMax;
+    pb.style.width=(r*100)+"%";
+    pb.style.background=r>.5?"var(--good)":r>.25?"var(--accent2)":"var(--bad)";
+  });
+}
+function serveCustomer(id){
+  const idx=G.customers.findIndex(c=>c.id===id);if(idx<0)return;
+  const c=G.customers[idx];
+  const el=document.querySelector('.cust[data-id="'+id+'"]');
+  if(!canServe(c)){ if(el){el.classList.remove("shake");void el.offsetWidth;el.classList.add("shake");} return; }
+  G.warm-=c.qty; G.saus-=sauceNeed(c);
+  G.combo++;
+  // duit penjualan (emas) dipisah dari Trinkgeld (perak)
+  let base=c.qty*PRICE;
+  if(c.bungkus)base+=0.50;              // Verpackung
+  if(c.kacang)base+=0.40;               // Erdnusssauce
+  if(c.borongan)base+=c.qty*0.20;
+  const speed=c.pat/c.patMax;
+  let tip=base*0.26*speed*TIPMULT()*COMBOMULT();   // Trinkgeld gede -> kaleng jadi taruhan nyata
+  if(c.buru)tip*=1.5;
+  if(c.kapal)tip*=6;                    // anak kapal pesiar: Trinkgeld-nya gede banget
+  base=cents(base); tip=cents(tip);
+  const earn=cents(base+tip);
+  G.money=cents(G.money+earn); G.tipToday=cents(G.tipToday+tip); G.served++;
+  G.stats.porsi+=c.qty; G.stats.served++; G.stats.tipTotal+=tip;
+  G.stats.earned=cents(G.stats.earned+earn);          // buat skor
+  if(G.combo>G.stats.bestCombo) G.stats.bestCombo=G.combo;
+  showFloat(el,"+"+rupiah(earn),"var(--good)");
+  if(G.combo>=2){showFloat(el,"🔥 x"+G.combo,"#c0392b");sfx("combo");}
+  sfx("serve");sfx("coin");
+  flyCoins(el, Math.min(2+Math.floor(c.qty/2), 6), "gold");           // ke kas
+  if(tip>0){
+    flyCoins(el, Math.max(1,Math.min(5,Math.round(tip/0.5))), "silver"); // ke kaleng Trinkgeld
+    setTimeout(()=>sfx("plink"),430);
+  }
+  G.customers.splice(idx,1);
+  updateHUD();updateRes();renderCustomers();
+}
+function loseCustomer(c){
+  G.hearts--;G.combo=0;G.stats.walkouts++;
+  shakeScreen();sfx("leave");
+  showFloat(document.querySelector('.cust[data-id="'+c.id+'"]'),"😠 pergi!","var(--bad)");
+  updateHUD();
+  if(G.hearts<=0) endGame(false);
+}
+
+/* ---------- sauce ---------- */
+function startReheat(){
+  if(G.reheating||G.saus>=SAUCECAP())return;
+  G.reheating=true;G.reheatT=0;updateRes();
+}
+
+/* ---------- HUD ---------- */
+function updateRes(){
+  $("adoCount").textContent=G.adonan;
+  $("adoBar").style.width=Math.min(100,(G.adonan/14)*100)+"%";
+  const cap=SAUCECAP();
+  $("scCount").textContent=G.saus+"/"+cap;
+  $("scBar").style.width=(G.saus/cap*100)+"%";
+  const st=$("scState"),rb=$("reheat");
+  if(G.reheating){st.textContent="menghangatkan… "+Math.round(G.reheatT/REHEATTIME()*100)+"%";st.className="statein";rb.disabled=true;}
+  else if(G.saus<=0){st.textContent="HABIS — panaskan!";st.className="statein cold";rb.disabled=false;}
+  else if(G.saus<cap){st.textContent="panas";st.className="statein hot";rb.disabled=false;}
+  else {st.textContent="penuh";st.className="statein hot";rb.disabled=true;}
+  $("makeBatter").disabled=G.batterOpen;
+  const oc=$("oilCard");
+  if(G.oilOn){
+    oc.style.display="";
+    const max=OILMAX(), pct=Math.round(G.oil/max*100);
+    $("oilPct").textContent=pct+"%";
+    $("oilBar").style.width=pct+"%";
+    const os=$("oilState"),j=$("jerigen");
+    if(G.oil<OILMIN){os.textContent="HABIS — gak bisa goreng!";os.className="statein cold";j.classList.add("lowpulse");}
+    else if(G.oil<max*0.3){os.textContent="tinggal dikit";os.className="statein cold";j.classList.remove("lowpulse");}
+    else {os.textContent="cukup";os.className="statein hot";j.classList.remove("lowpulse");}
+  } else oc.style.display="none";
+}
+function updateHUD(){
+  $("money").textContent=rupiah(G.money);
+  $("hearts").textContent="❤️".repeat(Math.max(0,G.hearts))+"🖤".repeat(Math.max(0,3-G.hearts));
+  $("warmCount").textContent=G.warm;
+  $("tipAmt").textContent=rupiah(G.tipToday);
+  $("dayLabel").textContent="Hari "+G.day+" / 10";
+  $("dayProg").style.width=(G.target>0?Math.min(1,G.served/G.target)*100:0)+"%";
+  const cs=$("comboStat");
+  if(G.combo>=2){cs.style.display="";$("comboVal").textContent=G.combo;}
+  else cs.style.display="none";
+  updateClock();updateRes();
+}
+
+/* ---------- batter mini-game ---------- */
+const INGS=[
+  {k:"tepung",ic:"🌾",nm:"Tepung"},     {k:"kol",ic:"🥬",nm:"Kol"},
+  {k:"wortel",ic:"🥕",nm:"Wortel"},     {k:"bumbuB",ic:"🧄",nm:"Bumbu basah"},
+  {k:"bumbuK",ic:"🧂",nm:"Bumbu kering"},{k:"air",ic:"💧",nm:"Air"},
+];
+let batterStage="weigh",added={},mixVal=0;
+function openBatter(){
+  if(G.batterOpen)return;
+  G.batterOpen=true;batterStage="weigh";added={};mixVal=0;
+  updateRes();renderBatter();$("modal").style.display="flex";
+}
+function closeBatter(){G.batterOpen=false;$("modal").style.display="none";updateRes();}
+function renderBatter(){
+  const c=$("modalCard");
+  if(batterStage==="weigh"){
+    const all=INGS.every(i=>added[i.k]);
+    c.innerHTML=`<h1>🥣 Buat Adonan</h1>
+      <p>Timbang & masukkan semua bahan.<br><small style="color:var(--muted)">⏱️ Waktu jalan terus!</small></p>
+      <div class="ingredients">${INGS.map(i=>`<div class="ing${added[i.k]?" done":""}" data-k="${i.k}">
+        <span>${i.ic}</span><span class="nm">${i.nm}</span><span>${added[i.k]?"✔":""}</span></div>`).join("")}</div>
+      <button class="bigbtn green" id="toMix" ${all?"":"disabled"}>Lanjut: Aduk! 💪</button>
+      <button class="bigbtn" id="cancelB" style="background:#9a7a55">Nanti dulu ✖</button>`;
+    c.querySelectorAll(".ing").forEach(el=>el.onclick=()=>{added[el.dataset.k]=true;renderBatter();});
+    $("toMix").onclick=()=>{if(INGS.every(i=>added[i.k])){batterStage="mix";mixVal=0;renderBatter();}};
+    $("cancelB").onclick=closeBatter;
+  }else{
+    c.innerHTML=`<h1>💪 Aduk Sekuat Tenaga!</h1>
+      <p>Klik baskom secepat mungkin.</p>
+      <div class="mixbowl" id="mixbowl">🥣</div>
+      <div class="mixbar"><span id="mixspan"></span></div>
+      <button class="bigbtn" id="cancelB2" style="background:#9a7a55">Batal ✖</button>`;
+    $("mixbowl").onclick=tapMix;
+    $("cancelB2").onclick=closeBatter;
+    updateMixBar();
+  }
+}
+function tapMix(){
+  mixVal=Math.min(105,mixVal+100/MIXTARGET());
+  sfx("chop");
+  updateMixBar();
+  if(mixVal>=100)finishBatter();
+}
+function updateMixBar(){const s=$("mixspan");if(s)s.style.width=Math.min(100,mixVal)+"%";}
+function finishBatter(){
+  G.adonan+=BATCH();
+  closeBatter();updateRes();
+  showChar("🥣","Adonan siap! +"+BATCH(),1800);
+}
+
+/* ---------- drag & drop ---------- */
+let drag=null,ghost=null;
+function startDrag(e,payload,art){
+  drag=payload;
+  ghost=document.createElement("div");
+  ghost.className="ghost";
+  ghost.innerHTML=`<svg style="width:42px;height:42px"><use href="#ic-oil"/></svg>`;
+  document.body.appendChild(ghost);
+  moveGhost(e);
+  window.addEventListener("pointermove",onMove);
+  window.addEventListener("pointerup",onUp);
+  // Android: kalau jari ditarik keluar layar, ada telpon masuk, atau sistem
+  // ngambil alih sentuhan -> pointerup GAK PERNAH kepanggil dan ghost nyangkut.
+  window.addEventListener("pointercancel",onUp);
+  window.addEventListener("blur",onUp);
+}
+function moveGhost(e){ if(ghost){ghost.style.left=e.clientX+"px";ghost.style.top=e.clientY+"px";} }
+function onMove(e){
+  moveGhost(e);
+  const el=document.elementFromPoint(e.clientX,e.clientY);
+  const sl=$("slots");
+  sl.classList.toggle("dropok", drag&&drag.type==="oil"&&!!(el&&el.closest("#slots")));
+}
+function onUp(e){
+  // e bisa dari pointercancel/blur -> gak ada koordinat. Jangan sampai crash;
+  // yang penting ghost-nya tetep dibersihin.
+  const hasPos = e && typeof e.clientX==="number" && typeof e.clientY==="number";
+  if(hasPos && e.type==="pointerup"){
+    const el=document.elementFromPoint(e.clientX,e.clientY);
+    if(drag && drag.type==="oil" && el && el.closest("#slots")) refillOil();
+  }
+  if(ghost){ghost.remove();ghost=null;}
+  const sl=$("slots"); if(sl) sl.classList.remove("dropok");
+  drag=null;
+  window.removeEventListener("pointermove",onMove);
+  window.removeEventListener("pointerup",onUp);
+  window.removeEventListener("pointercancel",onUp);
+  window.removeEventListener("blur",onUp);
+}
+
+/* ---------- loop ---------- */
+let last=0;
+function loop(ts){
+  if(!G.running)return;
+  const dt=Math.min(.05,(ts-last)/1000||0);last=ts;
+  const cook=COOKTIME(),burn=BURNWINDOW();
+  let dirty=false;
+  G.slots.forEach((s,i)=>{
+    if(s.off) return;                       // mati: beku sampai sekring dinyalain
+    if(s.state==="cooking"){
+      s.t+=dt;
+      if(s.t>=cook){s.state="ready";s.t=0;s.helper=0;dirty=true;sfx("ding");}
+    } else if(s.state==="ready"){
+      s.t+=dt;
+      if(G.up.pegawai){ s.helper+=dt; if(s.helper>=HELPERDELAY()){ toWarmer(i); dirty=true; return; } }
+      if(s.t>=burn){s.state="burnt";dirty=true;sfx("burnt");G.stats.burnt++;}
+    }
+  });
+  if(G.powerOut) G.stats.fuseDown+=dt;                       // wajan nganggur gara2 sekring
+  if(G.oilOn && G.oil<OILMIN) G.stats.oilDown+=dt;           // gak bisa goreng gara2 minyak
+  if(G.blackoutRate>0 && !G.powerOut && Math.random()<G.blackoutRate*dt) tripPower();
+  // pencuri Trinkgeld
+  if(G.thiefOn){
+    if(!G.thief){ if(Math.random()<G.thiefRate*dt) spawnThief(); }
+    else {
+      const th=G.thief;
+      th.t-=dt;
+      if(th.t<=0) stealTip();
+      else {
+        // langkah maling: makin deket kaleng, makin cepet & makin panik bunyinya
+        const p=1-th.t/th.tMax;
+        th.tickT+=dt;
+        const iv=0.80-0.55*p;                 // 0,80 dtk -> 0,25 dtk
+        if(th.tickT>=iv){ th.tickT=0; sfx(p>0.65?"tickHi":"tick"); }
+        updateThief();
+      }
+    }
+  }
+  if(dirty) renderSlots();
+  else document.querySelectorAll(".slot.cooking").forEach(d=>{
+    const i=+d.dataset.i,s=G.slots[i];if(!s||s.state!=="cooking")return;
+    const p=Math.min(1,s.t/cook),deg=p*360,c=p<.6?"#e8a11c":"#6fbf3f";
+    const r=d.querySelector(".ring");if(r)r.style.background=`conic-gradient(${c} ${deg}deg,#0000 ${deg}deg)`;
+  });
+  if(G.pouring){
+    G.pourT+=dt;
+    const p=Math.min(1,G.pourT/POURTIME);
+    G.oil=G.pourFrom+(OILMAX()-G.pourFrom)*p;
+    if(p>=1) finishPour(); else updateRes();
+  }
+  if(G.reheating){G.reheatT+=dt;if(G.reheatT>=REHEATTIME()){G.reheating=false;G.saus=SAUCECAP();}updateRes();}
+  if(G.batterOpen&&batterStage==="mix"){mixVal=Math.max(0,mixVal-dt*7);updateMixBar();}
+  for(let i=G.customers.length-1;i>=0;i--){
+    const c=G.customers[i];c.pat-=dt;
+    const pb=$("pat"+c.id);
+    if(pb){const r=Math.max(0,c.pat/c.patMax);pb.style.width=(r*100)+"%";
+      pb.style.background=r>.5?"var(--good)":r>.25?"var(--accent2)":"var(--bad)";}
+    if(c.pat<=0){G.customers.splice(i,1);loseCustomer(c);renderCustomers();}
+  }
+  const elapsed=G.dayLen-G.timeLeft,was=G.rushOn;
+  G.rushOn=elapsed>=G.rushStart&&elapsed<G.rushEnd;
+  if(G.rushOn!==was){
+    $("rushBanner").style.display=G.rushOn?"flex":"none";
+    if(G.rushOn){ sfx("combo"); showChar("🤩","Jam rame! Pembeli pada dateng nih!",2600); }
+    else showChar("😌","Jam rame udah lewat. Santai dikit.",2000);
+  }
+  G.spawnTimer-=dt;
+  if(G.spawnTimer<=0&&G.customers.length<MAXVISIBLE()){
+    makeCustomer();
+    let base=G.rushOn?G.spawnEvery*0.65:G.spawnEvery;
+    if(G.festival)base*=0.85;
+    G.spawnTimer=base*(0.8+Math.random()*0.5);
+  }
+  G.timeLeft-=dt;
+  if(G.timeLeft<=0){endDay();return;}
+  updateClock();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- day flow (tantangan gak dibocorin di awal) ---------- */
+function setupEvents(day){
+  G.blackoutRate=0;G.blackoutN=0;G.borongan=false;G.festival=false;
+  G.oilOn=day>=3;
+  G.thiefOn=day>=5; G.thiefRate=day>=5?(0.016+(day-5)*0.004):0;  // makin sering di hari akhir
+  let news=null;
+  if(day===3) news={who:"#ch-supp",title:"Minyak",demo:"oil",
+    msg:"\"Kalau minyak mau habis, ditambahin ya. Kalau habis, gak bisa goreng.\""};
+  else if(day===4){ G.blackoutRate=0.05;G.blackoutN=1;
+    news={who:"#ch-elek",title:"Tukang Listrik",demo:"fuse",
+      msg:"\"Listrik di sini labil, sekringnya suka jeglek. Kalau mati, wajan gak nyala sendiri — kamu harus nyalain sekringnya sendiri ya.\""}; }
+  else if(day===5){ G.blackoutRate=0.065;G.blackoutN=2;
+    news={who:"#ch-pol",title:"Hati-hati Copet",demo:"thief",
+      msg:"\"Akhir-akhir ini ada yang suka ngincer kaleng Trinkgeld di stand-stand. Kalau ada yang mencurigakan, langsung tegur ya — jangan sampai keburu kebawa!\""}; }
+  else if(day===6){ G.borongan=true;G.blackoutRate=0.055;G.blackoutN=2;
+    news={who:"#ch-neigh",title:"Pesanan Borongan",msg:"\"Stand sebelah tutup! Banyak yang mau borong sekaligus. Siapin stok di penghangat ya.\""}; }
+  else if(day===7){ G.borongan=true;G.festival=true;G.blackoutRate=0.055;G.blackoutN=2;
+    news={who:"#ch-fan",title:"Pertandingan WM!",msg:"\"Malam ini ada pertandingan Piala Dunia — orang-orang nonton bareng terus pada laper. Bakal rame banget!\""}; }
+  else if(day===8){ G.borongan=true;G.festival=true;G.blackoutRate=0.065;G.blackoutN=3; }
+  else if(day===9){ G.borongan=true;G.festival=true;G.blackoutRate=0.075;G.blackoutN=3;
+    news={who:"#ch-fire",title:"Menuju Puncak",msg:"\"Dua hari lagi. Semua tantangan aktif sekaligus. Gaskeun!\""}; }
+  else if(day===10){ G.borongan=true;G.festival=true;G.blackoutRate=0.08;G.blackoutN=3;
+    news={who:"#ch-flag",title:"Hari Terakhir!",msg:"\"Hari terakhir jualan. Habis-habisan ya!\""}; }
+  return news;
+}
+function startDay(){
+  G.day++;
+  G.dayLen=Math.round((55+G.day*3)*0.81);   // hari dipendekin 10% lagi (total ~19%)
+  G.timeLeft=G.dayLen;
+  G.served=0;G.target=Math.round((4+G.day*1.2)*0.81);
+  G.spawnEvery=Math.max(2.6,5.0-G.day*0.18);   // awal udah lumayan padat, akhir tetep sama
+  G.customers=[];G.spawnTimer=1.5;
+  G.warm=0;G.adonan=18;G.saus=SAUCECAP();
+  G.reheating=false;G.reheatT=0;
+  G.oil=OILMAX();G.combo=0;
+  G.pouring=false;G.pourT=0;
+  G.thief=null;G.thiefHit=false;
+  G.tipToday=0;                          // kaleng Trinkgeld dikosongin tiap pagi
+  $("pourFx").style.display="none";
+  $("thiefEl").style.display="none";
+  $("thiefEl").classList.remove("hit");
+  $("tipjar").classList.remove("grab");
+  G.rushStart=G.dayLen*(6/12);G.rushEnd=G.dayLen*(10/12);
+  G.rushOn=false;
+  $("rushBanner").style.display="none";
+  $("fuseBanner").style.display="none";
+  $("charLayer").innerHTML="";
+  const news=setupEvents(G.day);
+  if(G.batterOpen)closeBatter();
+  buildSlots();updateHUD();renderCustomers();
+  if(news) showNews(news); else beginDay();
+}
+function showNews(n){
+  // peragaan gerak: jerigen diseret ke wajan, terus nuang
+  // ===== peragaan bergerak per event =====
+  const demoFuse = `
+    <div class="demo demoF">
+      <div class="dPanel dWajan">
+        <div class="dH">Penggorengan</div>
+        <div class="dSlots">
+          <span class="dSlot fOff f1"><span class="bala"></span><i>⚡</i></span>
+          <span class="dSlot fOff f2"><span class="bala"></span><i>⚡</i></span>
+          <span class="dSlot fOff f3"><span class="bala"></span><i>⚡</i></span>
+        </div>
+      </div>
+      <div class="fuseSide">
+        <span class="fBanner">⚡ LISTRIK MATI!</span>
+        <span class="fBtn">🔌 Nyalain Sekring</span>
+        <span class="demoHand fHand">👆</span>
+      </div>
+    </div>
+    <div class="demoTip">wajan mati → klik <b>Sekring</b> biar nyala lagi</div>`;
+
+  const demoThief = `
+    <div class="demo demoT">
+      <span class="tvThief"><svg><use href="#ch-thief"/></svg><span class="tvSlap">✋</span></span>
+      <span class="tvJar"><svg><use href="#ic-jar"/></svg><span class="tvAmt">4,20 €</span></span>
+      <span class="demoHand tvHand">👆</span>
+    </div>
+    <div class="demoTip">klik malingnya sebelum dia nyampe kaleng — <b>PLAK!</b></div>`;
+
+  // peragaan: tiruan layar asli — wajan di kiri, jerigen di panel kanan
+  const demoOil = n.demo==="oil" ? `
+    <div class="demo">
+      <div class="dPanel dWajan">
+        <div class="dH">Penggorengan</div>
+        <div class="dSlots">
+          <span class="dSlot"><span class="bala"></span></span>
+          <span class="dSlot"><span class="bala"></span></span>
+          <span class="dSlot"><span class="bala"></span></span>
+        </div>
+      </div>
+      <div class="dPanel dOil">
+        <div class="dH">Minyak</div>
+        <div class="dBar"><span></span></div>
+        <div class="dJerigen"><svg><use href="#ic-oil"/></svg></div>
+      </div>
+      <span class="demoTrail"></span>
+      <span class="demoCan"><svg><use href="#ic-oil"/></svg><span class="demoStream"></span></span>
+      <span class="demoHand">👆</span>
+    </div>
+    <div class="demoTip">seret jerigen ke wajan</div>` : "";
+
+  const demo = n.demo==="oil" ? demoOil
+             : n.demo==="fuse" ? demoFuse
+             : n.demo==="thief" ? demoThief : "";
+
+  $("card").innerHTML=`<div class="newsChar">${charArt(n.who,"newsIc")}</div>
+    <h2>${n.title}</h2><p style="font-style:italic">${n.msg}</p>
+    ${demo}
+    <button class="bigbtn green" id="beginBtn">Buka Stand — Hari ${G.day} ➡️</button>`;
+  $("overlay").style.display="flex";
+  $("beginBtn").onclick=()=>{ beginDay(); showChar(n.who,"Semangat ya!",2000); };
+}
+function beginDay(){
+  $("overlay").style.display="none";
+  G.running=true;G.paused=false;last=performance.now();
+  if(G.musicOn) startMusic();
+  requestAnimationFrame(loop);
+}
+function endDay(){
+  G.running=false; stopMusic();
+  if(G.batterOpen)closeBatter();
+  const bonus=G.served>=G.target?cents(G.target*PRICE*0.3):0;
+  if(bonus){G.money=cents(G.money+bonus); G.stats.earned=cents(G.stats.earned+bonus); updateHUD();}
+  if(G.day>=10){endGame(true);return;}
+  showShop(bonus);
+}
+function endGame(win){
+  G.running=false; stopMusic();
+  if(G.batterOpen)closeBatter();
+  const s=G.stats;
+  const best=getBest();
+  const skor=runScore(win);
+  const rekorSkor=skor>best.score, rekorPorsi=s.porsi>best.porsi;
+  if(rekorSkor) saveBest({score:skor,porsi:Math.max(best.porsi,s.porsi),day:G.day,win});
+  else saveBest({score:best.score,porsi:Math.max(best.porsi,s.porsi),day:Math.max(best.day,G.day),win:best.win||win});
+
+  // DIAGNOSIS: kenapa rugi — diurut dari yang paling bikin rugi
+  const probs=[];
+  if(s.walkouts>0) probs.push({w:s.walkouts*3.0, t:`<b>${s.walkouts} pembeli kabur</b> — antrean nunggu kelamaan`});
+  if(s.burnt>0)    probs.push({w:s.burnt*2.0,    t:`<b>${s.burnt} bala2 gosong</b> — kelamaan dianggurin di wajan`});
+  if(s.oilDown>2)  probs.push({w:s.oilDown*1.2,  t:`<b>${Math.round(s.oilDown)} detik gak bisa goreng</b> — minyak telat diisi`});
+  if(s.fuseDown>2) probs.push({w:s.fuseDown*1.0, t:`<b>${Math.round(s.fuseDown)} detik wajan mati</b> — sekring telat dinyalain`});
+  if(s.stolen>0)   probs.push({w:s.stolen*4.0,   t:`<b>${s.stolen}x Trinkgeld kecolongan</b> (${rupiah(s.stolenAmt)}) — telat negur`});
+  probs.sort((a,b)=>b.w-a.w);
+  const diag = probs.length
+    ? `<div class="diag"><div class="dh">🔍 Yang paling bikin rugi</div>${probs.slice(0,3).map(p=>`<div class="drow">• ${p.t}</div>`).join("")}</div>`
+    : `<div class="diag"><div class="dh">🔍 Nyaris sempurna</div><div class="drow">• Gak ada yang kabur, gak ada yang gosong. Gila sih.</div></div>`;
+
+  const bersih=Math.max(0,s.earned-s.stolenAmt);
+  $("card").innerHTML=`<div class="newsChar">${win?"🎉":"😵"}</div>
+    <h1>${win?"TAMAT — Mantap!":"Stand Tutup"}</h1>
+    <p>${win?"Berhasil lewatin 10 hari penuh — juragan bala2 sejati!":`Reputasi habis di <b>Hari ${G.day}</b>.`}</p>
+
+    <div class="scoreBox">
+      <div class="scoreLbl">SKOR${win?" · TAMAT 🏁":` · Hari ${G.day}`}</div>
+      <div class="scoreVal">${skor.toLocaleString("de-DE")}${rekorSkor?' <span class="rec">REKOR!</span>':''}</div>
+      <div class="scoreSub">
+        Pemasukan ${rupiah(s.earned)}
+        ${s.stolenAmt>0?` − kecolongan ${rupiah(s.stolenAmt)}`:""}
+        ${win?` × ${FINISHBONUS} <b>bonus tamat</b>`:""}
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="st"><span>🥔 Porsi terjual</span><b>${s.porsi}${rekorPorsi?' <span class="rec">REKOR!</span>':''}</b></div>
+      <div class="st"><span>🫙 Trinkgeld terkumpul</span><b>${rupiah(s.tipTotal)}</b></div>
+      <div class="st"><span>🧑 Pembeli dilayani</span><b>${s.served}</b></div>
+      <div class="st"><span>🔥 Combo terpanjang</span><b>x${s.bestCombo}</b></div>
+      <div class="st"><span>💰 Sisa kas</span><b>${rupiah(G.money)}</b></div>
+      <div class="st"><span>🏆 Rekor</span><b>${Math.max(best.score,skor).toLocaleString("de-DE")}</b></div>
+    </div>
+    ${diag}
+    <button class="bigbtn green" id="again">Main Lagi 🔁</button>`;
+  $("overlay").style.display="flex";
+  $("again").onclick=resetGame;
+}
+const LIFECOST=()=>40+G.livesBought*20;   // makin sering beli nyawa, makin mahal
+function showShop(bonus){
+  const c=$("card");
+  // beli nyawa (cuma kalau hati lagi kurang)
+  const lc=LIFECOST(), bisaBeli=G.hearts<3 && G.money>=lc;
+  const lifeRow = G.hearts<3 ? `
+    <div class="up life"><span class="ic">❤️</span>
+      <div class="info"><b>Beli 1 Nyawa</b><div>Balikin 1 hati yang ilang</div>
+        <span class="lvl">${"❤️".repeat(G.hearts)}${"🖤".repeat(3-G.hearts)}</span></div>
+      <button id="buyLife" ${bisaBeli?"":"disabled"}>${rupiah(lc)}</button></div>` : "";
+  // upgrade yg berhubungan sama mekanik yg belum kebuka: jangan dimunculin (biar gak spoiler)
+  const visible=UPGRADES.filter(u=>u.k!=="tangki"||G.oilOn);
+  const rows=visible.map(u=>{
+    const lvl=G.up[u.k],maxed=lvl>=u.max,cost=u.cost(lvl),afford=G.money>=cost&&!maxed;
+    return `<div class="up"><span class="ic">${u.ic}</span>
+      <div class="info"><b>${u.name}</b><div>${u.desc}</div><span class="lvl">Lv ${lvl}/${u.max}</span></div>
+      <button data-k="${u.k}" ${afford?"":"disabled"}>${maxed?"MAX":rupiah(cost)}</button></div>`;
+  }).join("");
+  const met=G.served>=G.target;
+  c.innerHTML=`<h1>Hari ${G.day} Selesai!</h1>
+    <p>Terjual <b>${G.served}</b> / target ${G.target} ${met?"✅":"⚠️"}
+    ${bonus?`<br><span style="color:var(--good)">Bonus target: +${rupiah(bonus)}</span>`:""}</p>
+    <p>💰 Kas: <b>${rupiah(G.money)}</b> &nbsp; ${"❤️".repeat(Math.max(0,G.hearts))}</p>
+    <h2 style="margin-top:12px">🛒 Belanja Upgrade</h2><div class="shop">${lifeRow}${rows}</div>
+    <button class="bigbtn" id="next">Buka Stand — Hari ${G.day+1} ➡️</button>`;
+  $("overlay").style.display="flex";
+  const lifeBtn=$("buyLife");
+  if(lifeBtn) lifeBtn.onclick=()=>{
+    const cost=LIFECOST();
+    if(G.hearts>=3||G.money<cost) return;
+    G.money=cents(G.money-cost);
+    G.hearts++; G.livesBought++;
+    sfx("coin"); updateHUD(); showShop(0);
+  };
+  c.querySelectorAll(".shop button[data-k]").forEach(b=>b.onclick=()=>{
+    const u=UPGRADES.find(x=>x.k===b.dataset.k),lvl=G.up[u.k];
+    if(lvl>=u.max)return;
+    const cost=u.cost(lvl);
+    if(G.money<cost)return;
+    G.money=cents(G.money-cost);G.up[u.k]++;showShop(0);
+  });
+  $("next").onclick=startDay;
+}
+function resetGame(){
+  G.day=0;G.money=0;G.hearts=3;G.warm=0;G.adonan=0;G.saus=0;
+  G.customers=[];G.slots=[];G.combo=0;
+  G.stats={porsi:0,served:0,walkouts:0,burnt:0,fuseDown:0,oilDown:0,stolen:0,stolenAmt:0,bestCombo:0,tipTotal:0};
+  G.tipToday=0;G.livesBought=0;
+  G.up={wajan:1,kompor:0,minyak:0,tangki:0,panci:0,baskom:0,etalase:0,pegawai:0,spanduk:0,speaker:0};
+  startDay();
+}
+/* ================= SKOR =================
+   Dulu skor = SISA KAS. Cacat: tiap beli upgrade skor turun,
+   jadi main paling "optimal" = gak pernah upgrade. Ngaco.
+   Sekarang skor = TOTAL YANG MASUK (dikurangi yang kecolongan),
+   plus bonus kalau berhasil sampai Hari 10.                        */
+const FINISHBONUS=1.15;               // +15% kalau tamat 10 hari
+function runScore(win){
+  const s=G.stats;
+  const bersih=Math.max(0, s.earned - s.stolenAmt);
+  return Math.round(bersih * (win?FINISHBONUS:1));
+}
+/* rekor pribadi — v3 = skor berbasis pemasukan (rekor lama dibuang) */
+const BESTVER=3;
+function getBest(){
+  const kosong={v:BESTVER,score:0,porsi:0,day:0,win:false};
+  try{
+    const b=JSON.parse(localStorage.getItem("bala2_best"));
+    if(!b || b.v!==BESTVER) return kosong;
+    return b;
+  }catch(e){ return kosong; }
+}
+function saveBest(b){ try{ localStorage.setItem("bala2_best",JSON.stringify({v:BESTVER,...b})); }catch(e){} }
+/* ---------- MENU / PAUSE ---------- */
+function pauseGame(){
+  if(!G.running || G.paused) return;
+  G.running=false; G.paused=true;
+  stopMusic();
+  showMenu();
+}
+function resumeGame(){
+  if(!G.paused) return;
+  G.paused=false;
+  $("menu").style.display="none";
+  G.running=true; last=performance.now();
+  if(G.musicOn) startMusic();
+  requestAnimationFrame(loop);
+}
+function showMenu(){
+  const b=getBest();
+  $("menuCard").innerHTML=`
+    <h1>⏸️ Jeda</h1>
+    <div class="stats">
+      <div class="st"><span>📅 Hari</span><b>${G.day} / 10</b></div>
+      <div class="st"><span>💰 Kas</span><b>${rupiah(G.money)}</b></div>
+      <div class="st"><span>🏆 Rekor skor</span><b>${b.score>0?b.score.toLocaleString("de-DE"):"belum ada"}</b></div>
+      ${b.porsi>0?`<div class="st"><span>🥔 Rekor porsi</span><b>${b.porsi}</b></div>`:""}
+    </div>
+    <div class="setRow">
+      <button class="setBtn ${G.sfxOn?"on":"off"}" id="tSfx">${G.sfxOn?"🔊":"🔇"} Suara: <b>${G.sfxOn?"ON":"OFF"}</b></button>
+      <button class="setBtn ${G.musicOn?"on":"off"}" id="tMus">${G.musicOn?"🎵":"🎵"} Musik: <b>${G.musicOn?"ON":"OFF"}</b></button>
+    </div>
+    <button class="bigbtn green" id="mResume">▶️ Lanjut Main</button>
+    <button class="bigbtn" id="mHelp" style="background:#5a8f3f">❓ Cara Main</button>
+    <button class="bigbtn" id="mRestart" style="background:#c0392b">🔄 Mulai Ulang dari Hari 1</button>`;
+  $("menu").style.display="flex";
+  $("mResume").onclick=resumeGame;
+  $("tSfx").onclick=()=>{ G.sfxOn=!G.sfxOn; saveSettings(); sfx("click"); showMenu(); };
+  $("tMus").onclick=()=>{
+    G.musicOn=!G.musicOn; saveSettings();
+    if(G.musicOn){ /* dinyalain lagi pas lanjut main */ } else stopMusic();
+    showMenu();
+  };
+  $("mHelp").onclick=()=>showHelp(true);
+  $("mRestart").onclick=()=>{
+    G.paused=false; $("menu").style.display="none";
+    stopMusic(); resetGame();
+  };
+}
+/* Cara main (dipakai di intro & dari menu) */
+function showHelp(fromMenu){
+  $("menuCard").innerHTML=`<h1>Cara Main</h1>${tutorialHTML()}
+    <button class="bigbtn green" id="hBack">${fromMenu?"⬅️ Kembali":"Mulai!"}</button>`;
+  $("menu").style.display="flex";
+  $("hBack").onclick=()=>{ if(fromMenu) showMenu(); else { $("menu").style.display="none"; } };
+}
+/* Tutorial bergerak — nunjukin, bukan cuma nyeritain */
+function tutorialHTML(){
+  return `
+  <div class="tut">
+
+    <div class="tBox">
+      <div class="tArt">
+        <span class="tSlot"><span class="bala tFry"></span></span>
+        <span class="tHand tHand1">👆</span>
+        <span class="tTag tTagReady">MATANG</span>
+      </div>
+      <div class="tCap"><b>1. Goreng.</b> Klik keranjang penggorengan. Tunggu sampai <b>MATANG</b> — kelamaan jadi <b>GOSONG</b>.<br>
+        <span class="tHint">Klik <b>“Goreng Semua”</b> buat pakai semua keranjang sekaligus.</span></div>
+    </div>
+
+    <div class="tBox">
+      <div class="tArt">
+        <span class="tSlot"><span class="bala tTake"></span></span>
+        <span class="tHand tHand2">👆</span>
+        <span class="tWarm"><svg><use href="#ic-warmer"/></svg><span class="tCount">+1</span></span>
+        <span class="bala tFly"></span>
+      </div>
+      <div class="tCap"><b>2. Ambil.</b> Klik yang matang → masuk <b>Penghangat</b>.<br>
+        <span class="tHint">Klik <b>“Ambil Semua”</b> buat ambil semua yang matang sekaligus.</span></div>
+    </div>
+
+    <div class="tBox">
+      <div class="tArt">
+        <span class="tCust">
+          <span class="tBub">Moin, 2x bitte!</span>
+          <span class="tFace"><svg viewBox="0 0 40 40">
+            <path d="M6 40v-4a8 8 0 0 1 8-8h12a8 8 0 0 1 8 8v4z" fill="#3a7bd5"/>
+            <rect x="17" y="24" width="6" height="6" fill="#f2c9a0"/>
+            <circle cx="20" cy="17" r="9.4" fill="#f2c9a0"/>
+            <path d="M10 15a10 10 0 0 1 20 0v1c-2-3.4-5.4-4.6-10-4.6S12 12.6 10 16z" fill="#5a3a22"/>
+            <circle cx="16.6" cy="17.4" r="1.35" fill="#2b1d14"/>
+            <circle cx="23.4" cy="17.4" r="1.35" fill="#2b1d14"/>
+            <path d="M17.2 21.6q2.8 2 5.6 0" stroke="#2b1d14" stroke-width="1.25" fill="none" stroke-linecap="round"/>
+          </svg></span>
+          <span class="tPat"><span></span></span>
+        </span>
+        <span class="tHand tHand3">👆</span>
+        <span class="tCoin tCoinG"></span>
+        <span class="tCoin tCoinS"></span>
+      </div>
+      <div class="tCap"><b>3. Layani.</b> Klik pembeli kalau stok cukup. Makin cepat = <b>Trinkgeld</b> makin gede.</div>
+    </div>
+
+    <div class="tBox">
+      <div class="tArt">
+        <span class="tIngs">
+          <span class="tIng tI1">🌾<i>✔</i></span>
+          <span class="tIng tI2">🥬<i>✔</i></span>
+          <span class="tIng tI3">🥕<i>✔</i></span>
+          <span class="tIng tI4">🧄<i>✔</i></span>
+          <span class="tIng tI5">🧂<i>✔</i></span>
+          <span class="tIng tI6">💧<i>✔</i></span>
+        </span>
+        <span class="tHand tHandIng">👆</span>
+        <span class="tBowl"><svg><use href="#ic-bowl"/></svg></span>
+        <span class="tBar"><span></span></span>
+      </div>
+      <div class="tCap"><b>4. Adonan.</b> Kalau habis: <b>klik ke-6 bahannya</b> satu-satu — 🌾 tepung, 🥬 kol, 🥕 wortel, 🧄 bumbu basah, 🧂 bumbu kering, 💧 air. Baru <b>aduk cepat-cepat</b>.</div>
+    </div>
+
+    <div class="tBox tWide">
+      <div class="tArt">
+        <span class="tPot"><svg><use href="#ic-pot"/></svg></span>
+        <span class="tSauce"><span></span></span>
+        <span class="tSauceLbl">HABIS</span>
+        <span class="tBtn">🔥 Panaskan</span>
+        <span class="tHand tHandSauce">👆</span>
+      </div>
+      <div class="tCap"><b>5. Saus kacang.</b> Pesanan <b>“mit Erdnusssauce”</b> otomatis pakai saus. Jaga stoknya — kalau tinggal dikit, klik <b>Panaskan</b> (butuh waktu).</div>
+    </div>
+
+  </div>
+  <div class="tNote">❤️ Pembeli kabur = ilang 1 hati. Habis 3 hati = warung tutup.<br>🏁 Bertahan sampai <b>Hari 10</b>.</div>`;
+}
+function showIntro(){
+  $("card").innerHTML=`<h1><span class="bala"></span> Bala2 Rush</h1>
+    <p>Jaga stand <b>bala2</b> yang lagi rame.</p>
+    ${tutorialHTML()}
+    <button class="bigbtn green" id="start">Mulai Jualan! 🔥</button>
+    ${getBest().score>0?`<div class="recline">🏆 Rekor: ${getBest().score.toLocaleString("de-DE")} · ${getBest().porsi} porsi${getBest().win?" · pernah tamat 🏁":""}</div>`:""}`;
+  $("overlay").style.display="flex";
+  $("start").onclick=resetGame;
+}
+
+/* ---------- events ---------- */
+$("menuBtn").onclick=()=>{ if(G.running) pauseGame(); };
+$("slots").addEventListener("click",e=>{
+  const el=e.target.closest(".slot");if(!el)return;
+  clickSlot(+el.dataset.i);
+});
+$("collect").onclick=()=>{ collectAll(); };
+$("jerigen").addEventListener("pointerdown",e=>{
+  if(!G.oilOn)return;
+  startDrag(e,{type:"oil"},"🛢️");e.preventDefault();
+});
+$("customers").addEventListener("click",e=>{
+  const c=e.target.closest(".cust");if(c)serveCustomer(+c.dataset.id);
+});
+/* Tombol yg dipencet jangan nyimpen fokus.
+   Kalau enggak: di Windows, abis klik tombol terus tekan Spasi -> tombol itu
+   ke-klik lagi (dobel aksi), padahal Spasi harusnya "Goreng Semua". */
+["fryAll","collect","makeBatter","reheat","fuseBtn","menuBtn"].forEach(id=>{
+  const b=$(id); if(b) b.addEventListener("pointerdown",e=>e.preventDefault());
+});
+$("fryAll").onclick=fryAll;
+$("makeBatter").onclick=openBatter;
+$("reheat").onclick=startReheat;
+$("fuseBtn").onclick=resetFuse;
+$("thiefEl").addEventListener("pointerdown",e=>{ e.preventDefault(); shooThief(); });
+document.addEventListener("keydown",e=>{
+  if(e.repeat) return;                       // tahan tombol jangan spam
+  if(G.batterOpen&&batterStage==="mix"&&e.key===" "){e.preventDefault();tapMix();return;}
+  if(!G.running)return;
+  const k=e.key.toLowerCase();
+  if(e.key===" "||e.code==="Space"){e.preventDefault();fryAll();}
+  if(k==="c")collectAll();
+  if(k==="p")startReheat();
+  if(k==="a")openBatter();
+  if(k==="l")resetFuse();
+  if(k==="u")shooThief();
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){ if(G.paused) resumeGame(); else if(G.running) pauseGame(); }
+});
+/* HP dikunci / pindah app / ganti tab -> auto jeda.
+   Kalau enggak: timer & pembeli tetep jalan di belakang, balik-balik udah kalah. */
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){
+    stopMusic();
+    if(G.running) pauseGame();
+    if(actx && actx.state==="running") actx.suspend();
+  }
+});
+
+loadSettings();
+showIntro();
+
+/* expose buat test */
+if(typeof module!=="undefined"&&module.exports){
+  module.exports={G,UPGRADES,fryOne,fryAll,toWarmer,refillOil,canFry,canServe,sauceNeed,clickSlot,collectAll,
+    makeCustomer,custSay,serveCustomer,buildSlots,tripPower,resetFuse,setupEvents,startReheat,SAUCECAP,OILMIN,OILUSE};
+}
+})();
+</script>
+</body>
+</html>
