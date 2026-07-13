@@ -1,0 +1,19 @@
+{
+  "name": "Bala2 Rush",
+  "short_name": "Bala2 Rush",
+  "description": "Jaga lapak bala2 goreng di Norddeutschland. Goreng, layani pembeli, jangan sampai kecolongan Trinkgeld.",
+  "lang": "id",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "portrait",
+  "background_color": "#2a1810",
+  "theme_color": "#8a5a2b",
+  "categories": ["games"],
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
