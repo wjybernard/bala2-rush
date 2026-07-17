@@ -274,6 +274,15 @@
   .setBtn.on{background:var(--good);color:#fff;}
   .setBtn.off{background:#c9bda9;color:#5a4a35;}
   .setBtn:active{transform:translateY(2px);box-shadow:0 1px 0 #0003;}
+  .volRow{display:flex;align-items:center;gap:10px;margin:8px 2px;}
+  .volRow .vlbl{width:74px;font-weight:800;font-size:13px;color:#5a4a35;flex:none;}
+  .volRow .vpct{width:38px;text-align:right;font-weight:800;font-size:12px;color:#7a6a52;flex:none;}
+  input[type=range].vol{flex:1;-webkit-appearance:none;appearance:none;height:8px;border-radius:6px;
+    background:#d8cdb8;outline:none;touch-action:manipulation;}
+  input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;
+    border-radius:50%;background:var(--good);border:2px solid #fff;box-shadow:0 2px 3px #0004;cursor:pointer;}
+  input[type=range].vol::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--good);
+    border:2px solid #fff;box-shadow:0 2px 3px #0004;cursor:pointer;}
 
   /* ===== tutorial bergerak ===== */
   .tut{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;}
@@ -933,7 +942,7 @@ const G={
   reheating:false, reheatT:0,
   oil:100, oilOn:false, pouring:false, pourT:0, pourFrom:0,
   thiefOn:false, thief:null, thiefRate:0, thiefHit:false, tipToday:0, livesBought:0,
-  paused:false, sfxOn:true, musicOn:true, perksOn:true,
+  paused:false, sfxOn:true, musicOn:true, perksOn:true, sfxVol:1, musicVol:1,
   stats:{porsi:0,served:0,walkouts:0,burnt:0,fuseDown:0,oilDown:0,stolen:0,stolenAmt:0,bestCombo:0,
          tipTotal:0, earned:0},   // earned = total masuk (bukan sisa kas) -> beli upgrade gak ngurangin skor
   customers:[], spawnTimer:0, spawnEvery:4, custId:0,
@@ -1015,8 +1024,8 @@ function audio(){
     lim.threshold.value=-6; lim.knee.value=8; lim.ratio.value=14;
     lim.attack.value=0.003; lim.release.value=0.18;
     const master=actx.createGain(); master.gain.value=0.85;
-    busSfx=actx.createGain();   busSfx.gain.value=1.0;
-    busMusic=actx.createGain(); busMusic.gain.value=0.7;    // musik: cukup kedengeran di belakang
+    busSfx=actx.createGain();   busSfx.gain.value=G.sfxVol;
+    busMusic=actx.createGain(); busMusic.gain.value=0.7*G.musicVol;   // musik: cukup kedengeran di belakang
     busSfx.connect(master); busMusic.connect(master);
     master.connect(lim); lim.connect(actx.destination);
     // noise 1 detik, dibikin SEKALI, dipakai ulang selamanya
@@ -1061,11 +1070,18 @@ function tone(f,dur,vol,wave,rampTo,bus,when){
 function loadSettings(){
   try{
     const s=JSON.parse(localStorage.getItem("bala2_set"));
-    if(s){ G.sfxOn=s.sfxOn!==false; G.musicOn=s.musicOn!==false; G.perksOn=s.perksOn!==false; }
+    if(s){ G.sfxOn=s.sfxOn!==false; G.musicOn=s.musicOn!==false; G.perksOn=s.perksOn!==false;
+           if(typeof s.sfxVol==="number") G.sfxVol=Math.max(0,Math.min(1,s.sfxVol));
+           if(typeof s.musicVol==="number") G.musicVol=Math.max(0,Math.min(1,s.musicVol)); }
   }catch(e){}
 }
 function saveSettings(){
-  try{ localStorage.setItem("bala2_set",JSON.stringify({sfxOn:G.sfxOn,musicOn:G.musicOn,perksOn:G.perksOn})); }catch(e){}
+  try{ localStorage.setItem("bala2_set",JSON.stringify({sfxOn:G.sfxOn,musicOn:G.musicOn,perksOn:G.perksOn,sfxVol:G.sfxVol,musicVol:G.musicVol})); }catch(e){}
+}
+/* volume bus di-scale sesuai slider (0..1). Musik dasarnya 0.7 biar duduk di belakang. */
+function applyVol(){
+  if(busSfx)   busSfx.gain.value   = G.sfxVol;
+  if(busMusic) busMusic.gain.value = 0.7*G.musicVol;
 }
 
 /* ---------- musik latar: penjadwal look-ahead (anti-ngedrift) ----------
@@ -1114,6 +1130,47 @@ function startMusic(){
   musicTimer=setInterval(scheduleMusic,40);
 }
 function stopMusic(){ if(musicTimer){ clearInterval(musicTimer); musicTimer=null; } }
+
+/* ---------- gitar listrik: buat jingle kemenangan ----------
+   3 saw didetune + sedikit distorsi (waveshaper) + lowpass -> bunyi kayak petikan gitar listrik. */
+let distCurve=null;
+function guitar(f,dur,vol,when){
+  const a=audio(); if(!a) return;
+  const t=when||a.currentTime;
+  if(!distCurve){ distCurve=new Float32Array(256);
+    for(let i=0;i<256;i++){ const x=i/128-1; distCurve[i]=Math.tanh(x*3.2); } }
+  const pre=a.createGain(); pre.gain.value=1;
+  const ws=a.createWaveShaper(); ws.curve=distCurve; ws.oversample="2x";
+  const lp=a.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=2800; lp.Q.value=1.6;
+  const g=a.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.008);          // petik
+  g.gain.exponentialRampToValueAtTime(vol*0.55,t+dur*0.45);  // sustain
+  g.gain.exponentialRampToValueAtTime(0.0008,t+dur);         // luruh
+  pre.connect(ws); ws.connect(lp); lp.connect(g); g.connect(busMusic);
+  [0,-6,6].forEach(cents=>{
+    const o=a.createOscillator(); o.type="sawtooth";
+    o.frequency.value=f*Math.pow(2,cents/1200);
+    o.connect(pre); o.start(t); o.stop(t+dur+0.04);
+  });
+}
+/* Riff pembuka "Sayur Kol" (perkiraan) — sekali jalan pas menang. */
+function winJingle(){
+  const a=audio(); if(!a || !G.musicOn) return;
+  const t0=a.currentTime+0.18, q=0.22;
+  const A4=440, E4=329.63, F4=349.23, D4=293.66, C4=261.63;
+  // lead: sa-yur kol, sa-yur kol, ma-kan da-ging ke-pi-ting
+  const lead=[
+    [A4,0,q*1.1],[A4,q*1.2,q*0.8],[E4,q*2.1,q*1.3],
+    [A4,q*3.6,q*1.1],[A4,q*4.8,q*0.8],[E4,q*5.7,q*1.4],
+    [E4,q*7.4,q],[F4,q*8.4,q],[E4,q*9.4,q],[D4,q*10.4,q],
+    [C4,q*11.4,q],[D4,q*12.4,q],[E4,q*13.4,q*2.2]
+  ];
+  lead.forEach(n=>guitar(n[0],n[2],0.15,t0+n[1]));
+  // power chord (root+quint) di bawah biar berasa gitar listrik
+  const chord=(root,off,dur)=>{ guitar(root,dur,0.10,t0+off); guitar(root*1.5,dur,0.09,t0+off); };
+  chord(220,0,q*3.1); chord(220,q*3.6,q*3.4); chord(164.81,q*7.4,q*6.4);
+}
 
 /* rem suara: satu jenis bunyi gak boleh nubruk dirinya sendiri terlalu rapat.
    Pas jam rame, dulu 5 pembeli dateng bareng = 5 bunyi numpuk jadi "brak". */
@@ -1993,6 +2050,7 @@ function endDay(){
 function endGame(win){
   G.running=false; stopMusic();
   if(G.batterOpen)closeBatter();
+  if(win) setTimeout(winJingle,200);   // riff gitar "Sayur Kol" pas tamat Hari 10
   checkRunAch(win);
   const s=G.stats;
   const best=getBest();               // dibaca SEBELUM skor disimpan
@@ -2407,6 +2465,8 @@ function showMenu(){
       <button class="setBtn ${G.sfxOn?"on":"off"}" id="tSfx">${G.sfxOn?"🔊":"🔇"} Suara: <b>${G.sfxOn?"ON":"OFF"}</b></button>
       <button class="setBtn ${G.musicOn?"on":"off"}" id="tMus">${G.musicOn?"🎵":"🎵"} Musik: <b>${G.musicOn?"ON":"OFF"}</b></button>
     </div>
+    <div class="volRow"><span class="vlbl">🔊 Suara</span><input type="range" class="vol" id="vSfx" min="0" max="100" value="${Math.round(G.sfxVol*100)}"><span class="vpct" id="vSfxP">${Math.round(G.sfxVol*100)}%</span></div>
+    <div class="volRow"><span class="vlbl">🎵 Musik</span><input type="range" class="vol" id="vMus" min="0" max="100" value="${Math.round(G.musicVol*100)}"><span class="vpct" id="vMusP">${Math.round(G.musicVol*100)}%</span></div>
     <button class="bigbtn green" id="mResume">▶️ Lanjut Main</button>
     <button class="bigbtn" id="mAch" style="background:#c9902a">🏅 Achievements</button>
     <button class="bigbtn" id="mHelp" style="background:#5a8f3f">❓ Cara Main</button>
@@ -2415,6 +2475,11 @@ function showMenu(){
   $("menu").style.display="flex";
   $("mResume").onclick=resumeGame;
   $("tSfx").onclick=()=>{ G.sfxOn=!G.sfxOn; saveSettings(); sfx("click"); showMenu(); };
+  const vs=$("vSfx"), vm=$("vMus");
+  vs.oninput=()=>{ G.sfxVol=vs.value/100; $("vSfxP").textContent=vs.value+"%"; applyVol(); };
+  vs.onchange=()=>{ saveSettings(); sfx("ding"); };
+  vm.oninput=()=>{ G.musicVol=vm.value/100; $("vMusP").textContent=vm.value+"%"; applyVol(); };
+  vm.onchange=()=>{ saveSettings(); };
   $("tMus").onclick=()=>{
     G.musicOn=!G.musicOn; saveSettings();
     if(G.musicOn){ /* dinyalain lagi pas lanjut main */ } else stopMusic();
@@ -2540,102 +2605,4 @@ function tutorialHTML(){
     </div>` : ""}
 
   </div>
-  <div class="tNote">❤️ Pembeli kabur = ilang 1 hati. Habis 3 hati = warung tutup.<br>🏁 Bertahan sampai <b>Hari ke-10</b>.</div>`;
-}
-let chosenTier=0;
-function tierPickHTML(){
-  const m=getMeta();
-  const pills=TIERS.map((nm,i)=>{
-    const locked=i>m.maxTier, sel=i===chosenTier&&!locked;
-    return `<button class="tierPill${sel?" sel":""}${locked?" lock":""}" data-t="${i}" ${locked?"disabled":""}>
-      ${locked?"🔒 ":""}${nm}${i>0?` <small>+${(TIERSTAR[i])}× ⭐</small>`:""}</button>`;
-  }).join("");
-  return `<div class="tierRow">${pills}</div>`;
-}
-function showIntro(){
-  const m=getMeta();
-  if(chosenTier>m.maxTier) chosenTier=m.maxTier;
-  $("card").innerHTML=`<h1><span class="bala"></span> Bala2 Rush</h1>
-    ${tutorialHTML()}
-    <div class="pickLbl">Tingkat kesulitan</div>
-    ${tierPickHTML()}
-    <button class="bigbtn green" id="start">Mulai Jualan! 🔥</button>
-    <div class="introBtns">
-      <button class="bigbtn half" id="introStar" style="background:#c9902a">⭐ Toko Bintang${m.stars>0?` (${m.stars})`:""}</button>
-      <button class="bigbtn half" id="introAch" style="background:#5a8f3f">🏅 Achievements</button>
-    </div>
-    ${(()=>{const b=getBest(); return b.score>0
-      ? `<div class="recline">🏆 Rekor: <b>${esc(b.name)}</b> · ${b.score.toLocaleString("de-DE")}${b.win?" · pernah tamat 🏁":""}</div>`
-      : "";})()}`;
-  $("overlay").style.display="flex";
-  $("card").querySelectorAll(".tierPill[data-t]").forEach(b=>b.onclick=()=>{
-    if(b.disabled) return; chosenTier=+b.dataset.t; sfx("click"); showIntro();
-  });
-  $("start").onclick=()=>{ G.tier=chosenTier; resetGame(); };
-  $("introStar").onclick=()=>showPerkShop(()=>{ showIntro(); $("menu").style.display="none"; });
-  $("introAch").onclick=()=>showAch(()=>{ $("menu").style.display="none"; });
-}
-
-/* ---------- events ---------- */
-$("menuBtn").onclick=()=>{ if(G.running) pauseGame(); };
-$("slots").addEventListener("click",e=>{
-  const el=e.target.closest(".slot");if(!el)return;
-  clickSlot(+el.dataset.i);
-});
-$("collect").onclick=()=>{ collectAll(); };
-$("jerigen").addEventListener("pointerdown",e=>{
-  if(!G.oilOn)return;
-  startDrag(e,{type:"oil"},"🛢️");e.preventDefault();
-});
-$("customers").addEventListener("click",e=>{
-  const c=e.target.closest(".cust");if(c)serveCustomer(+c.dataset.id);
-});
-/* Tombol yg dipencet jangan nyimpen fokus.
-   Kalau enggak: di Windows, abis klik tombol terus tekan Spasi -> tombol itu
-   ke-klik lagi (dobel aksi), padahal Spasi harusnya "Goreng Semua". */
-["fryAll","collect","makeBatter","reheat","fuseBtn","menuBtn"].forEach(id=>{
-  const b=$(id); if(b) b.addEventListener("pointerdown",e=>e.preventDefault());
-});
-$("fryAll").onclick=fryAll;
-$("makeBatter").onclick=openBatter;
-$("reheat").onclick=startReheat;
-$("fuseBtn").onclick=resetFuse;
-$("thiefEl").addEventListener("pointerdown",e=>{ e.preventDefault(); shooThief(); });
-document.addEventListener("keydown",e=>{
-  if(e.repeat) return;                       // tahan tombol jangan spam
-  if(G.batterOpen&&batterStage==="mix"&&e.key===" "){e.preventDefault();tapMix();return;}
-  if(!G.running)return;
-  const k=e.key.toLowerCase();
-  if(e.key===" "||e.code==="Space"){e.preventDefault();fryAll();}
-  if(k==="c")collectAll();
-  if(k==="p")startReheat();
-  if(k==="a")openBatter();
-  if(k==="l")resetFuse();
-  if(k==="u")shooThief();
-});
-document.addEventListener("keydown",e=>{
-  if(e.key==="Escape"){ if(G.paused) resumeGame(); else if(G.running) pauseGame(); }
-});
-/* HP dikunci / pindah app / ganti tab -> auto jeda.
-   Kalau enggak: timer & pembeli tetep jalan di belakang, balik-balik udah kalah. */
-document.addEventListener("visibilitychange",()=>{
-  if(document.hidden){
-    stopMusic();
-    if(G.running) pauseGame();
-    if(actx && actx.state==="running") actx.suspend();
-  }
-});
-
-loadSettings();
-applyAchMigrations();
-showIntro();
-
-/* expose buat test */
-if(typeof module!=="undefined"&&module.exports){
-  module.exports={G,UPGRADES,fryOne,fryAll,toWarmer,refillOil,canFry,canServe,sauceNeed,clickSlot,collectAll,
-    makeCustomer,custSay,serveCustomer,buildSlots,tripPower,resetFuse,setupEvents,startReheat,SAUCECAP,OILMIN,OILUSE};
-}
-})();
-</script>
-</body>
-</html>
+  <div class="tNote">❤️ Pembeli kabur = ilang 1 hati. Habis 3 hati = warung
