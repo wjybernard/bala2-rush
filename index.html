@@ -1158,24 +1158,24 @@ function guitar(f,dur,vol,when){
    Chord asli C mayor: "sayur kol"(F) "sayur kol"(C), "makan daging anjing dengan sayur kol"(G->C). */
 function winJingle(){
   const a=audio(); if(!a || !G.musicOn) return;
-  const B=0.42, t0=a.currentTime+0.2;                 // 1 ketuk = 0.42 dtk
-  const C4=261.63,D4=293.66,E4=329.63,F4=349.23,G4=392.00,A4=440.00;
-  // lead vokal (freq, ketuk mulai, panjang ketuk)
+  const t0=a.currentTime+0.2;
+  const G4=392.00,A4=440.00,B4=493.88,C5=523.25,D5=587.33,E5=659.25,F5=698.46;
+  // lead vokal (freq, mulai dtk, panjang dtk) — nada + ritme rekaman Bernard
   const lead=[
-    [A4,0,1],[A4,1,1],[F4,2,1.6],                     // sa-yur kol..
-    [G4,4,1],[G4,5,1],[E4,6,1.6],                     // sa-yur kol..
-    [G4,8,.5],[G4,8.5,.5],[A4,9,.5],[A4,9.5,.5],      // ma-kan da-ging
-    [G4,10,.5],[G4,10.5,.5],                          // an-jing
-    [E4,11,.5],[E4,11.5,.5],[D4,12,.5],[D4,12.5,.5],  // de-ngan sa-yur
-    [C4,13,2]                                         // kol
+    [C5,0.000,0.17],[B4,0.170,0.23],[A4,0.403,0.39],[C5,0.789,0.39],[F5,1.177,0.42],   // sa-yur ko-o-ol
+    [C5,1.593,0.20],[A4,1.797,0.26],[G4,2.058,0.31],[C5,2.369,0.36],[E5,2.728,0.33],    // sa-yur ko-o-ol
+    [C5,3.055,0.19],[C5,3.243,0.22],[D5,3.465,0.22],[D5,3.682,0.22],                     // ma-kan da-ging
+    [D5,3.898,0.22],[D5,4.114,0.25],                                                     // an-jing
+    [G4,4.362,0.26],[G4,4.624,0.23],                                                     // de-ngan
+    [E5,4.855,0.23],[D5,5.086,0.22],[C5,5.306,1.36]                                      // sa-yur kol
   ];
-  lead.forEach(n=>guitar(n[0],n[2]*B,0.16,t0+n[1]*B));
-  // power chord (root + kuint) ngikutin F - C - G - C
-  const chord=(root,fifth,beat,dur)=>{ guitar(root,dur*B,0.09,t0+beat*B); guitar(fifth,dur*B,0.08,t0+beat*B); };
-  chord(174.61,261.63,0,4);    // F
-  chord(130.81,196.00,4,4);    // C
-  chord(196.00,293.66,8,4);    // G
-  chord(130.81,196.00,12,3);   // C
+  lead.forEach(n=>guitar(n[0],n[2],0.16,t0+n[1]));
+  // power chord (root + kuint) — "sa-yur" cuma ancang2, chord masuk pas "ko" (downbeat)
+  const chord=(root,fifth,at,dur)=>{ guitar(root,dur,0.09,t0+at); guitar(fifth,dur,0.08,t0+at); };
+  chord(174.61,261.63,0.403,1.655);   // F  masuk pas "ko" frase 1
+  chord(130.81,196.00,2.058,0.997);   // C  masuk pas "ko" frase 2
+  chord(196.00,293.66,3.055,2.251);   // G  makan daging anjing dengan
+  chord(130.81,196.00,5.306,1.36);    // C  resolusi di "kol"
 }
 
 /* rem suara: satu jenis bunyi gak boleh nubruk dirinya sendiri terlalu rapat.
@@ -2597,9 +2597,4 @@ function tutorialHTML(){
     ${G.oilOn ? `
     <div class="tBox tWide">
       <div class="tArt2"><svg class="tIcBig"><use href="#ic-oil"/></svg></div>
-      <div class="tCap"><b>Minyak.</b> Kalau minyak menipis, <b>seret jerigen ke penggorengan</b> buat isi. Minyak habis = gak bisa goreng.</div>
-    </div>` : ""}
-    ${G.blackoutN>0 ? `
-    <div class="tBox tWide">
-      <div class="tArt2"><svg class="tIcBig"><use href="#ic-fuse"/></svg></div>
-      <div class="tCap"><b>Mati lampu.</b> Kadang listrik jeglek dan wajan mati. Klik tombol <b>“Nyalain Sekring”</b> b
+      <div class="tCap"><b>Minyak.</b> Kalau minyak menipis, <b>seret jerig
