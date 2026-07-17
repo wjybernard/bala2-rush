@@ -988,10 +988,12 @@ const FEVERMULT=2;                    // penghasilan dikali segini selama fever
    Perk permanen kecil-kecil (kesimpen di HP), diimbangi kesulitan yg naik biar gak
    kegampangan buat pemain lama. */
 const TIERS=["Normal","Sulit","Ekstrem"];
-const TIERSPAWN=[1, 0.78, 0.62];     // pengali jeda spawn (kecil = pembeli lebih rapet)
-const TIEROIL  =[1, 1.30, 1.60];     // pengali boros minyak
-const TIERTHIEF=[1, 1.50, 2.00];     // pengali seringnya maling
-const TIERSTAR =[1, 2, 3];           // pengali ⭐ yg didapat
+const TIERSPAWN =[1, 0.74, 0.48];    // pengali jeda spawn (kecil = pembeli lebih rapet)
+const TIERPAT   =[1, 0.88, 0.70];    // pengali kesabaran (kecil = pembeli cepat kabur)
+const TIERTARGET=[1, 1.15, 1.40];    // pengali target jualan per hari
+const TIEROIL   =[1, 1.30, 1.80];    // pengali boros minyak
+const TIERTHIEF =[1, 1.55, 2.40];    // pengali seringnya maling
+const TIERSTAR  =[1, 2, 3];          // pengali ⭐ yg didapat
 const T=()=>G.tier||0;
 /* perk permanen -> efek */
 const metaModal =()=>getPerk("modal")*5;      // +€ modal awal per level
@@ -1590,7 +1592,7 @@ function makeCustomer(){
   const buru=d>=2&&!borongan&&Math.random()<Math.min(.05+d*0.02,.22);
   // hari WM (festival): banyak supporter timnas Jerman — jersey putih + bendera di pipi
   const supporter=G.festival&&!kapal&&Math.random()<0.5;
-  let pat=(12+qty*1.9)*PATIENCE();
+  let pat=(12+qty*1.9)*PATIENCE()*TIERPAT[T()];   // kesulitan tinggi: pembeli lebih gak sabar
   if(buru)pat*=0.75; if(bungkus)pat*=1.2; if(borongan)pat*=1.5; if(kapal)pat*=1.4;
   pat/=(1+d*0.02);
   const c={id:++G.custId,
@@ -1962,7 +1964,7 @@ function startDay(){
   G.day++;
   G.dayLen=Math.round((55+G.day*3)*0.81);   // hari dipendekin 10% lagi (total ~19%)
   G.timeLeft=G.dayLen;
-  G.served=0;G.target=Math.round((4+G.day*1.2)*0.81);
+  G.served=0;G.target=Math.round((4+G.day*1.2)*0.81*TIERTARGET[T()]);   // kesulitan tinggi: target lebih besar
   G.spawnEvery=Math.max(2.6,5.0-G.day*0.18);   // awal udah lumayan padat, akhir tetep sama
   G.customers=[];G.spawnTimer=1.5;
   G.warm=metaPrepW();G.adonan=18+metaPrepA();G.saus=SAUCECAP();   // perk Prep Subuh
