@@ -1154,22 +1154,28 @@ function guitar(f,dur,vol,when){
     o.connect(pre); o.start(t); o.stop(t+dur+0.04);
   });
 }
-/* Riff pembuka "Sayur Kol" (perkiraan) — sekali jalan pas menang. */
+/* Reff "Sayur Kol" (Punxgoaran) — gitar listrik, sekali jalan pas menang.
+   Chord asli C mayor: "sayur kol"(F) "sayur kol"(C), "makan daging anjing dengan sayur kol"(G->C). */
 function winJingle(){
   const a=audio(); if(!a || !G.musicOn) return;
-  const t0=a.currentTime+0.18, q=0.22;
-  const A4=440, E4=329.63, F4=349.23, D4=293.66, C4=261.63;
-  // lead: sa-yur kol, sa-yur kol, ma-kan da-ging ke-pi-ting
+  const B=0.42, t0=a.currentTime+0.2;                 // 1 ketuk = 0.42 dtk
+  const C4=261.63,D4=293.66,E4=329.63,F4=349.23,G4=392.00,A4=440.00;
+  // lead vokal (freq, ketuk mulai, panjang ketuk)
   const lead=[
-    [A4,0,q*1.1],[A4,q*1.2,q*0.8],[E4,q*2.1,q*1.3],
-    [A4,q*3.6,q*1.1],[A4,q*4.8,q*0.8],[E4,q*5.7,q*1.4],
-    [E4,q*7.4,q],[F4,q*8.4,q],[E4,q*9.4,q],[D4,q*10.4,q],
-    [C4,q*11.4,q],[D4,q*12.4,q],[E4,q*13.4,q*2.2]
+    [A4,0,1],[A4,1,1],[F4,2,1.6],                     // sa-yur kol..
+    [G4,4,1],[G4,5,1],[E4,6,1.6],                     // sa-yur kol..
+    [G4,8,.5],[G4,8.5,.5],[A4,9,.5],[A4,9.5,.5],      // ma-kan da-ging
+    [G4,10,.5],[G4,10.5,.5],                          // an-jing
+    [E4,11,.5],[E4,11.5,.5],[D4,12,.5],[D4,12.5,.5],  // de-ngan sa-yur
+    [C4,13,2]                                         // kol
   ];
-  lead.forEach(n=>guitar(n[0],n[2],0.15,t0+n[1]));
-  // power chord (root+quint) di bawah biar berasa gitar listrik
-  const chord=(root,off,dur)=>{ guitar(root,dur,0.10,t0+off); guitar(root*1.5,dur,0.09,t0+off); };
-  chord(220,0,q*3.1); chord(220,q*3.6,q*3.4); chord(164.81,q*7.4,q*6.4);
+  lead.forEach(n=>guitar(n[0],n[2]*B,0.16,t0+n[1]*B));
+  // power chord (root + kuint) ngikutin F - C - G - C
+  const chord=(root,fifth,beat,dur)=>{ guitar(root,dur*B,0.09,t0+beat*B); guitar(fifth,dur*B,0.08,t0+beat*B); };
+  chord(174.61,261.63,0,4);    // F
+  chord(130.81,196.00,4,4);    // C
+  chord(196.00,293.66,8,4);    // G
+  chord(130.81,196.00,12,3);   // C
 }
 
 /* rem suara: satu jenis bunyi gak boleh nubruk dirinya sendiri terlalu rapat.
@@ -2596,13 +2602,4 @@ function tutorialHTML(){
     ${G.blackoutN>0 ? `
     <div class="tBox tWide">
       <div class="tArt2"><svg class="tIcBig"><use href="#ic-fuse"/></svg></div>
-      <div class="tCap"><b>Mati lampu.</b> Kadang listrik jeglek dan wajan mati. Klik tombol <b>“Nyalain Sekring”</b> biar nyala lagi.</div>
-    </div>` : ""}
-    ${G.thiefOn ? `
-    <div class="tBox tWide">
-      <div class="tArt2"><svg class="tIcBig"><use href="#ch-thief"/></svg></div>
-      <div class="tCap"><b>Maling.</b> Ada yang ngincer <b>tip jar</b>. Klik malingnya sebelum dia nyampe — biar Trinkgeld-mu aman.</div>
-    </div>` : ""}
-
-  </div>
-  <div class="tNote">❤️ Pembeli kabur = ilang 1 hati. Habis 3 hati = warung
+      <div class="tCap"><b>Mati lampu.</b> Kadang listrik jeglek dan wajan mati. Klik tombol <b>“Nyalain Sekring”</b> b
