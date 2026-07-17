@@ -580,6 +580,14 @@
     background:#c9902a;color:#fff;cursor:pointer;box-shadow:0 3px 0 #0003;white-space:nowrap;touch-action:manipulation;}
   .perk .pBuy:disabled{background:#b9b3a5;box-shadow:none;cursor:not-allowed;}
   .perk .pBuy:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #0003;}
+  .perk .pCtrl{display:flex;flex-direction:column;gap:5px;align-items:stretch;flex:0 0 auto;}
+  .perk .pOnOff{font:inherit;font-weight:900;font-size:11px;padding:5px 10px;border:0;border-radius:8px;
+    cursor:pointer;box-shadow:0 2px 0 #0003;white-space:nowrap;touch-action:manipulation;min-width:58px;}
+  .perk .pOnOff.on{background:var(--good);color:#fff;}
+  .perk .pOnOff.off{background:#c9bda9;color:#5a4a35;}
+  .perk .pOnOff:active{transform:translateY(1px);box-shadow:0 1px 0 #0003;}
+  .perk.poff{opacity:.62;}
+  .perk.poff .pIc{filter:grayscale(1);}
 
   /* ---------- papan skor + input nama ---------- */
   .bTitle{text-align:center;font-weight:900;font-size:14px;margin:12px 0 6px;color:#6b4a22;}
@@ -942,7 +950,7 @@ const G={
   reheating:false, reheatT:0,
   oil:100, oilOn:false, pouring:false, pourT:0, pourFrom:0,
   thiefOn:false, thief:null, thiefRate:0, thiefHit:false, tipToday:0, livesBought:0,
-  paused:false, sfxOn:true, musicOn:true, perksOn:true, sfxVol:1, musicVol:1,
+  paused:false, sfxOn:true, musicOn:true, perkOff:{}, sfxVol:1, musicVol:1,
   stats:{porsi:0,served:0,walkouts:0,burnt:0,fuseDown:0,oilDown:0,stolen:0,stolenAmt:0,bestCombo:0,
          tipTotal:0, earned:0},   // earned = total masuk (bukan sisa kas) -> beli upgrade gak ngurangin skor
   customers:[], spawnTimer:0, spawnEvery:4, custId:0,
@@ -1070,13 +1078,14 @@ function tone(f,dur,vol,wave,rampTo,bus,when){
 function loadSettings(){
   try{
     const s=JSON.parse(localStorage.getItem("bala2_set"));
-    if(s){ G.sfxOn=s.sfxOn!==false; G.musicOn=s.musicOn!==false; G.perksOn=s.perksOn!==false;
+    if(s){ G.sfxOn=s.sfxOn!==false; G.musicOn=s.musicOn!==false;
+           if(s.perkOff && typeof s.perkOff==="object") G.perkOff=s.perkOff;
            if(typeof s.sfxVol==="number") G.sfxVol=Math.max(0,Math.min(1,s.sfxVol));
            if(typeof s.musicVol==="number") G.musicVol=Math.max(0,Math.min(1,s.musicVol)); }
   }catch(e){}
 }
 function saveSettings(){
-  try{ localStorage.setItem("bala2_set",JSON.stringify({sfxOn:G.sfxOn,musicOn:G.musicOn,perksOn:G.perksOn,sfxVol:G.sfxVol,musicVol:G.musicVol})); }catch(e){}
+  try{ localStorage.setItem("bala2_set",JSON.stringify({sfxOn:G.sfxOn,musicOn:G.musicOn,perkOff:G.perkOff,sfxVol:G.sfxVol,musicVol:G.musicVol})); }catch(e){}
 }
 /* volume bus di-scale sesuai slider (0..1). Musik dasarnya 0.7 biar duduk di belakang. */
 function applyVol(){
@@ -2288,6 +2297,7 @@ function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"
 /* ============ META (⭐ Bintang, perk permanen, tingkat kesulitan) ============ */
 const METAVER=1;
 /* perk: id, nama, deskripsi, level maks, biaya tiap level (⭐) */
+/* perk: tiap yg dimiliki bisa di-ON/OFF sendiri di Toko Bintang */
 const PERKS=[
   {id:"modal", ic:"💶", name:"Modal Awal",     desc:"Mulai tiap main dengan kas ekstra.",      max:3, cost:[3,6,10]},
   {id:"prep",  ic:"🌅", name:"Prep Subuh",      desc:"Buka tiap hari udah ada stok adonan & bala2 siap saji.", max:2, cost:[5,10]},
@@ -2309,8 +2319,8 @@ function bumpLifeBy(k,n){ const m=getMeta(); m.life[k]=(m.life[k]||0)+n; saveMet
 function saveMeta(m){ try{ localStorage.setItem("bala2_meta",JSON.stringify({v:METAVER,...m})); }catch(e){} }
 /* level yg BENERAN dimiliki (buat tampilan toko) */
 function ownedPerk(id){ return getMeta().perks[id]||0; }
-/* level EFEKTIF: kalau perks dimatiin, semua efek jadi 0 (buat coba tanpa perk) */
-function getPerk(id){ return G.perksOn ? ownedPerk(id) : 0; }
+/* level EFEKTIF: tiap perk bisa dimatiin sendiri (buat coba tanpa perk tertentu) */
+function getPerk(id){ return G.perkOff[id] ? 0 : ownedPerk(id); }
 function addStars(n){ const m=getMeta(); m.stars=(m.stars||0)+n; saveMeta(m); }
 function unlockTier(t){ const m=getMeta(); if(t>m.maxTier){ m.maxTier=Math.min(2,t); saveMeta(m); return true; } return false; }
 /* ⭐ dari satu run: per 20 porsi + bonus tamat, dikali sesuai kesulitan */
@@ -2326,22 +2336,29 @@ function showPerkShop(back){
     const lvl=m.perks[p.id]||0, maxed=lvl>=p.max;
     const cost=maxed?0:p.cost[lvl];
     const afford=!maxed && m.stars>=cost;
-    return `<div class="perk${maxed?" maxed":""}">
+    const owned=lvl>0, off=!!G.perkOff[p.id];
+    return `<div class="perk${maxed?" maxed":""}${owned&&off?" poff":""}">
       <span class="pIc">${p.ic}</span>
       <div class="pInfo"><b>${esc(p.name)}</b><div>${esc(p.desc)}</div>
         <span class="pLvl">${"●".repeat(lvl)}${"○".repeat(p.max-lvl)} Lv ${lvl}/${p.max}</span></div>
-      <button class="pBuy" data-id="${p.id}" ${afford?"":"disabled"}>${maxed?"MAX":"⭐ "+cost}</button>
+      <div class="pCtrl">
+        ${owned?`<button class="pOnOff ${off?"off":"on"}" data-tog="${p.id}">${off?"OFF":"ON"}</button>`:""}
+        <button class="pBuy" data-id="${p.id}" ${afford?"":"disabled"}>${maxed?"MAX":"⭐ "+cost}</button>
+      </div>
     </div>`;
   }).join("");
   $("menuCard").innerHTML=`<h1>⭐ Toko Bintang</h1>
     <div class="starBal">Punya <b>${m.stars} ⭐</b></div>
-    <button class="setBtn ${G.perksOn?"on":"off"}" id="perkToggle" style="width:100%;margin-bottom:8px">
-      🎁 Pakai Perks: <b>${G.perksOn?"ON":"OFF"}</b>${G.perksOn?"":" — main murni tanpa perk"}</button>
-    <div class="perkList" style="${G.perksOn?"":"opacity:.5"}">${rows}</div>
+    <div class="perkHint" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin-bottom:6px">Tekan ON/OFF buat matiin perk tertentu — bisa coba tanpa perk pilihan sendiri.</div>
+    <div class="perkList">${rows}</div>
     <button class="bigbtn green" id="perkBack">⬅️ Kembali</button>`;
   $("menu").style.display="flex";
   $("perkBack").onclick=back;
-  $("perkToggle").onclick=()=>{ G.perksOn=!G.perksOn; saveSettings(); sfx("click"); showPerkShop(back); };
+  $("menuCard").querySelectorAll(".pOnOff[data-tog]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.tog;
+    if(G.perkOff[id]) delete G.perkOff[id]; else G.perkOff[id]=1;
+    saveSettings(); sfx("click"); showPerkShop(back);
+  });
   $("menuCard").querySelectorAll(".pBuy[data-id]").forEach(b=>b.onclick=()=>{
     const p=PERKS.find(x=>x.id===b.dataset.id), mm=getMeta(), lvl=mm.perks[p.id]||0;
     if(lvl>=p.max) return; const cost=p.cost[lvl];
