@@ -950,7 +950,7 @@ const G={
   reheating:false, reheatT:0,
   oil:100, oilOn:false, pouring:false, pourT:0, pourFrom:0,
   thiefOn:false, thief:null, thiefRate:0, thiefHit:false, tipToday:0, livesBought:0,
-  paused:false, sfxOn:true, musicOn:true, perkOff:{}, sfxVol:1, musicVol:1,
+  paused:false, sfxOn:true, musicOn:true, perkOff:{}, sfxVol:1, musicVol:1, cleanRun:false,
   stats:{porsi:0,served:0,walkouts:0,burnt:0,fuseDown:0,oilDown:0,stolen:0,stolenAmt:0,bestCombo:0,
          tipTotal:0, earned:0},   // earned = total masuk (bukan sisa kas) -> beli upgrade gak ngurangin skor
   customers:[], spawnTimer:0, spawnEvery:4, custId:0,
@@ -988,12 +988,15 @@ const FEVERMULT=2;                    // penghasilan dikali segini selama fever
    Perk permanen kecil-kecil (kesimpen di HP), diimbangi kesulitan yg naik biar gak
    kegampangan buat pemain lama. */
 const TIERS=["Normal","Sulit","Ekstrem"];
-const TIERSPAWN =[1, 0.74, 0.48];    // pengali jeda spawn (kecil = pembeli lebih rapet)
-const TIERPAT   =[1, 0.88, 0.70];    // pengali kesabaran (kecil = pembeli cepat kabur)
-const TIERTARGET=[1, 1.15, 1.40];    // pengali target jualan per hari
-const TIEROIL   =[1, 1.30, 1.80];    // pengali boros minyak
-const TIERTHIEF =[1, 1.55, 2.40];    // pengali seringnya maling
+const TIERRUSH  =[1, 0.80, 0.56];    // jeda spawn PAS RUSH (kecil = puncak makin ganas)
+const TIERCALM  =[1, 0.96, 0.90];    // jeda spawn di LUAR rush (dijaga longgar = ada napas)
+const TIERPAT   =[1, 0.90, 0.74];    // pengali kesabaran (kecil = pembeli cepat kabur)
+const TIERTARGET=[1, 1.12, 1.30];    // pengali target jualan per hari
+const TIEROIL   =[1, 1.28, 1.65];    // pengali boros minyak
+const TIERTHIEF =[1, 1.50, 2.20];    // pengali seringnya maling
 const TIERSTAR  =[1, 2, 3];          // pengali ⭐ yg didapat
+const OILDAY    =[3, 2, 1];          // hari minyak mulai aktif per tingkat
+const THIEFDAY  =[5, 4, 3];          // hari maling mulai muncul per tingkat
 const T=()=>G.tier||0;
 /* perk permanen -> efek */
 const metaModal =()=>getPerk("modal")*5;      // +€ modal awal per level
@@ -1875,7 +1878,7 @@ function loop(ts){
   tickFever(dt);
   if(G.powerOut) G.stats.fuseDown+=dt;                       // wajan nganggur gara2 sekring
   if(G.oilOn && G.oil<OILMIN) G.stats.oilDown+=dt;           // gak bisa goreng gara2 minyak
-  if(G.blackoutRate>0 && !G.powerOut && Math.random()<G.blackoutRate*dt) tripPower();
+  if(G.blackoutRate>0 && !G.powerOut && Math.random()<G.blackoutRate*dt*(G.customers.length>4?0.35:1)) tripPower();
   // pencuri Trinkgeld
   if(G.thiefOn){
     if(!G.thief){ if(Math.random()<G.thiefRate*dt) spawnThief(); }
@@ -1924,9 +1927,8 @@ function loop(ts){
   G.spawnTimer-=dt;
   if(G.spawnTimer<=0&&G.customers.length<MAXVISIBLE()){
     makeCustomer();
-    let base=G.rushOn?G.spawnEvery*0.65:G.spawnEvery;
+    let base=G.rushOn ? G.spawnEvery*0.65*TIERRUSH[T()] : G.spawnEvery*TIERCALM[T()];  // ritme: rush ganas, luar rush ada napas
     if(G.festival)base*=0.85;
-    base*=TIERSPAWN[T()];                                  // kesulitan: pembeli lebih rapet
     G.spawnTimer=base*(0.8+Math.random()*0.5);
   }
   G.timeLeft-=dt;
@@ -1938,8 +1940,9 @@ function loop(ts){
 /* ---------- day flow (tantangan gak dibocorin di awal) ---------- */
 function setupEvents(day){
   G.blackoutRate=0;G.blackoutN=0;G.borongan=false;G.festival=false;
-  G.oilOn=day>=3;
-  G.thiefOn=day>=5; G.thiefRate=(day>=5?(0.016+(day-5)*0.004):0)*TIERTHIEF[T()];  // makin sering di hari akhir & kesulitan tinggi
+  G.oilOn=day>=OILDAY[T()];
+  const td=THIEFDAY[T()];
+  G.thiefOn=day>=td; G.thiefRate=(day>=td?(0.016+(day-td)*0.004):0)*TIERTHIEF[T()];  // maling mulai lebih awal & lebih sering di tingkat tinggi
   let news=null;
   if(day===3) news={who:"#ch-supp",title:"Minyak",demo:"oil",
     msg:"\"Kalau minyak mau habis, ditambahin ya. Kalau habis, gak bisa goreng.\""};
@@ -1958,6 +1961,7 @@ function setupEvents(day){
     news={who:"#ch-fire",title:"Menuju Puncak",msg:"\"Dua hari lagi. Semua tantangan aktif sekaligus. Gaskeun!\""}; }
   else if(day===10){ G.borongan=true;G.festival=true;G.blackoutRate=0.08;G.blackoutN=3;
     news={who:"#ch-flag",title:"Hari Terakhir!",msg:"\"Hari terakhir jualan. Habis-habisan ya!\""}; }
+  if(T()>0 && news && news.demo) news=null;   // tingkat tinggi: udah paham, gak perlu tutorial ulang
   return news;
 }
 function startDay(){
@@ -2213,6 +2217,7 @@ function resetGame(){
   G.tipToday=0;G.livesBought=0;
   G.kapalCount=0; G.kapalNextDay=3; G.kapalDay=3+Math.floor(Math.random()*4);  // 3..6
   G.up={wajan:1,kompor:0,minyak:0,tangki:0,panci:0,baskom:0,etalase:0,pegawai:0,spanduk:0,speaker:0};
+  G.cleanRun = PERKS.some(p=>ownedPerk(p.id)>0) && !PERKS.some(p=>getPerk(p.id)>0);   // punya perk tapi semua OFF = run bersih
   startDay();
 }
 /* ================= SKOR =================
@@ -2231,6 +2236,7 @@ function scoreParts(win){
   if(cb>0) parts.push({label:"Combo x"+G.stats.bestCombo, v:cb});
   const hp=Math.max(0,G.hearts)*0.08;
   if(hp>0) parts.push({label:Math.max(0,G.hearts)+" nyawa sisa", v:hp});
+  if(G.cleanRun) parts.push({label:"Tanpa Perk ✊", v:0.4});
   if(win) parts.push({label:"Tamat 🏁", v:FINISHBONUS});
   return parts;
 }
@@ -2329,7 +2335,7 @@ function unlockTier(t){ const m=getMeta(); if(t>m.maxTier){ m.maxTier=Math.min(2
 function starsFromRun(win){
   // ⭐ dikurangin biar gak kecepetan: per 35 porsi + bonus tamat kecil, dikali kesulitan
   const base=Math.floor(G.stats.porsi/35) + (win?3:0);
-  return Math.round(base * TIERSTAR[T()]);
+  return Math.round(base * TIERSTAR[T()] * (G.cleanRun?1.5:1));   // run bersih = +50% ⭐
 }
 /* Toko Bintang — beli perk permanen. 'back' = tombol kembali. */
 function showPerkShop(back){
@@ -2351,7 +2357,7 @@ function showPerkShop(back){
   }).join("");
   $("menuCard").innerHTML=`<h1>⭐ Toko Bintang</h1>
     <div class="starBal">Punya <b>${m.stars} ⭐</b></div>
-    <div class="perkHint" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin-bottom:6px">Tekan ON/OFF buat matiin perk tertentu — bisa coba tanpa perk pilihan sendiri.</div>
+    <div class="perkHint" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin-bottom:6px">Matiin perk tertentu buat nyoba tanpa bantuan. Matiin SEMUA perk yg dimiliki = run bersih → bonus skor & ⭐.</div>
     <div class="perkList">${rows}</div>
     <button class="bigbtn green" id="perkBack">⬅️ Kembali</button>`;
   $("menu").style.display="flex";
@@ -2640,7 +2646,8 @@ function tierPickHTML(){
     return `<button class="tierPill${sel?" sel":""}${locked?" lock":""}" data-t="${i}" ${locked?"disabled":""}>
       ${locked?"🔒 ":""}${nm}${i>0?` <small>+${(TIERSTAR[i])}× ⭐</small>`:""}</button>`;
   }).join("");
-  return `<div class="tierRow">${pills}</div>`;
+  const DESC=["Santai — tantangan dikenalin bertahap. Pas buat belajar.","Pembeli lebih rapet & kurang sabar. Minyak & maling muncul lebih cepat.","Rush brutal, pembeli cepat kabur, minyak dari Hari 1. Buat yang cari nightmare."];
+  return `<div class="tierRow">${pills}</div><div class="tierDesc" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin:7px 2px 2px;line-height:1.35">${DESC[chosenTier]||""}</div>`;
 }
 function showIntro(){
   const m=getMeta();
