@@ -2597,4 +2597,116 @@ function tutorialHTML(){
     ${G.oilOn ? `
     <div class="tBox tWide">
       <div class="tArt2"><svg class="tIcBig"><use href="#ic-oil"/></svg></div>
-      <div class="tCap"><b>Minyak.</b> Kalau minyak menipis, <b>seret jerig
+      <div class="tCap"><b>Minyak.</b> Kalau minyak menipis, <b>seret jerigen ke penggorengan</b> buat isi. Minyak habis = gak bisa goreng.</div>
+    </div>` : ""}
+    ${G.blackoutN>0 ? `
+    <div class="tBox tWide">
+      <div class="tArt2"><svg class="tIcBig"><use href="#ic-fuse"/></svg></div>
+      <div class="tCap"><b>Mati lampu.</b> Kadang listrik jeglek dan wajan mati. Klik tombol <b>“Nyalain Sekring”</b> biar nyala lagi.</div>
+    </div>` : ""}
+    ${G.thiefOn ? `
+    <div class="tBox tWide">
+      <div class="tArt2"><svg class="tIcBig"><use href="#ch-thief"/></svg></div>
+      <div class="tCap"><b>Maling.</b> Ada yang ngincer <b>tip jar</b>. Klik malingnya sebelum dia nyampe — biar Trinkgeld-mu aman.</div>
+    </div>` : ""}
+
+  </div>
+  <div class="tNote">❤️ Pembeli kabur = ilang 1 hati. Habis 3 hati = warung tutup.<br>🏁 Bertahan sampai <b>Hari ke-10</b>.</div>`;
+}
+let chosenTier=0;
+function tierPickHTML(){
+  const m=getMeta();
+  const pills=TIERS.map((nm,i)=>{
+    const locked=i>m.maxTier, sel=i===chosenTier&&!locked;
+    return `<button class="tierPill${sel?" sel":""}${locked?" lock":""}" data-t="${i}" ${locked?"disabled":""}>
+      ${locked?"🔒 ":""}${nm}${i>0?` <small>+${(TIERSTAR[i])}× ⭐</small>`:""}</button>`;
+  }).join("");
+  return `<div class="tierRow">${pills}</div>`;
+}
+function showIntro(){
+  const m=getMeta();
+  if(chosenTier>m.maxTier) chosenTier=m.maxTier;
+  $("card").innerHTML=`<h1><span class="bala"></span> Bala2 Rush</h1>
+    ${tutorialHTML()}
+    <div class="pickLbl">Tingkat kesulitan</div>
+    ${tierPickHTML()}
+    <button class="bigbtn green" id="start">Mulai Jualan! 🔥</button>
+    <div class="introBtns">
+      <button class="bigbtn half" id="introStar" style="background:#c9902a">⭐ Toko Bintang${m.stars>0?` (${m.stars})`:""}</button>
+      <button class="bigbtn half" id="introAch" style="background:#5a8f3f">🏅 Achievements</button>
+    </div>
+    ${(()=>{const b=getBest(); return b.score>0
+      ? `<div class="recline">🏆 Rekor: <b>${esc(b.name)}</b> · ${b.score.toLocaleString("de-DE")}${b.win?" · pernah tamat 🏁":""}</div>`
+      : "";})()}`;
+  $("overlay").style.display="flex";
+  $("card").querySelectorAll(".tierPill[data-t]").forEach(b=>b.onclick=()=>{
+    if(b.disabled) return; chosenTier=+b.dataset.t; sfx("click"); showIntro();
+  });
+  $("start").onclick=()=>{ G.tier=chosenTier; resetGame(); };
+  $("introStar").onclick=()=>showPerkShop(()=>{ showIntro(); $("menu").style.display="none"; });
+  $("introAch").onclick=()=>showAch(()=>{ $("menu").style.display="none"; });
+}
+
+/* ---------- events ---------- */
+$("menuBtn").onclick=()=>{ if(G.running) pauseGame(); };
+$("slots").addEventListener("click",e=>{
+  const el=e.target.closest(".slot");if(!el)return;
+  clickSlot(+el.dataset.i);
+});
+$("collect").onclick=()=>{ collectAll(); };
+$("jerigen").addEventListener("pointerdown",e=>{
+  if(!G.oilOn)return;
+  startDrag(e,{type:"oil"},"🛢️");e.preventDefault();
+});
+$("customers").addEventListener("click",e=>{
+  const c=e.target.closest(".cust");if(c)serveCustomer(+c.dataset.id);
+});
+/* Tombol yg dipencet jangan nyimpen fokus.
+   Kalau enggak: di Windows, abis klik tombol terus tekan Spasi -> tombol itu
+   ke-klik lagi (dobel aksi), padahal Spasi harusnya "Goreng Semua". */
+["fryAll","collect","makeBatter","reheat","fuseBtn","menuBtn"].forEach(id=>{
+  const b=$(id); if(b) b.addEventListener("pointerdown",e=>e.preventDefault());
+});
+$("fryAll").onclick=fryAll;
+$("makeBatter").onclick=openBatter;
+$("reheat").onclick=startReheat;
+$("fuseBtn").onclick=resetFuse;
+$("thiefEl").addEventListener("pointerdown",e=>{ e.preventDefault(); shooThief(); });
+document.addEventListener("keydown",e=>{
+  if(e.repeat) return;                       // tahan tombol jangan spam
+  if(G.batterOpen&&batterStage==="mix"&&e.key===" "){e.preventDefault();tapMix();return;}
+  if(!G.running)return;
+  const k=e.key.toLowerCase();
+  if(e.key===" "||e.code==="Space"){e.preventDefault();fryAll();}
+  if(k==="c")collectAll();
+  if(k==="p")startReheat();
+  if(k==="a")openBatter();
+  if(k==="l")resetFuse();
+  if(k==="u")shooThief();
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){ if(G.paused) resumeGame(); else if(G.running) pauseGame(); }
+});
+/* HP dikunci / pindah app / ganti tab -> auto jeda.
+   Kalau enggak: timer & pembeli tetep jalan di belakang, balik-balik udah kalah. */
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){
+    stopMusic();
+    if(G.running) pauseGame();
+    if(actx && actx.state==="running") actx.suspend();
+  }
+});
+
+loadSettings();
+applyAchMigrations();
+showIntro();
+
+/* expose buat test */
+if(typeof module!=="undefined"&&module.exports){
+  module.exports={G,UPGRADES,fryOne,fryAll,toWarmer,refillOil,canFry,canServe,sauceNeed,clickSlot,collectAll,
+    makeCustomer,custSay,serveCustomer,buildSlots,tripPower,resetFuse,setupEvents,startReheat,SAUCECAP,OILMIN,OILUSE};
+}
+})();
+</script>
+</body>
+</html>
