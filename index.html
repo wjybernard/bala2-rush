@@ -962,6 +962,7 @@ const G={
   up:{wajan:1,kompor:0,minyak:0,tangki:0,panci:0,baskom:0,etalase:0,pegawai:0,spanduk:0,speaker:0},
 };
 const PRICE=1.50;  // € per porsi bala2
+const ENDLESS_START=250;  // modal mentah pas mulai Endless (Hari 11)
 const OILUSE=4.5, OILMIN=12;         // minyak: kepake per goreng; di bawah OILMIN gak bisa goreng
 const OILMAX=()=>100+G.up.tangki*70; // tangki lebih gede = jarang ngisi
 const POURTIME=1.0;                  // durasi animasi nuang minyak
@@ -2159,7 +2160,7 @@ function endGame(win){
 }
 const LIFECOST=()=>40+G.livesBought*20;   // makin sering beli nyawa, makin mahal
 const UPCOST=(u,lvl)=>cents(u.cost(lvl)*(1-metaThrift()));          // perk Tukang Nawar: diskon upgrade
-function showShop(bonus){
+function showShop(bonus, prep){
   const c=$("card");
   // beli nyawa (cuma kalau hati lagi kurang)
   const mh=MAXHEARTS();
@@ -2178,12 +2179,11 @@ function showShop(bonus){
       <button data-k="${u.k}" ${afford?"":"disabled"}>${maxed?"MAX":rupiah(cost)}</button></div>`;
   }).join("");
   const met=G.served>=G.target;
-  c.innerHTML=`<h1>Hari ${G.day} Selesai!</h1>
-    <p>Terjual <b>${G.served}</b> / target ${G.target} ${met?"✅":"⚠️"}
-    ${bonus?`<br><span style="color:var(--good)">Bonus target: +${rupiah(bonus)}</span>`:""}</p>
-    <p>💰 Kas: <b>${rupiah(G.money)}</b> &nbsp; ${"❤️".repeat(Math.max(0,G.hearts))}</p>
+  c.innerHTML=`<h1>${prep?"🔥 Endless — Siapin Lapak":"Hari "+G.day+" Selesai!"}</h1>
+    ${prep?`<p>Modal awal <b>${rupiah(G.money)}</b>. Belanja upgrade dulu (sekali ini aja), terus buka Hari 11.</p>`:`<p>Terjual <b>${G.served}</b> / target ${G.target} ${met?"✅":"⚠️"}${bonus?`<br><span style="color:var(--good)">Bonus target: +${rupiah(bonus)}</span>`:""}</p>
+    <p>💰 Kas: <b>${rupiah(G.money)}</b> &nbsp; ${"❤️".repeat(Math.max(0,G.hearts))}</p>`}
     <h2 style="margin-top:12px">🛒 Belanja Upgrade</h2><div class="shop">${lifeRow}${rows}</div>
-    <button class="bigbtn" id="next">Buka Stand — Hari ${G.day+1} ➡️</button>`;
+    <button class="bigbtn" id="next">${prep?"Buka Stand — Hari 11 🔥":"Buka Stand — Hari "+(G.day+1)+" ➡️"}</button>`;
   $("overlay").style.display="flex";
   const lifeBtn=$("buyLife");
   if(lifeBtn) lifeBtn.onclick=()=>{
@@ -2216,7 +2216,8 @@ function resetGame(){
   G.kapalCount=0; G.kapalNextDay=3; G.kapalDay=3+Math.floor(Math.random()*4);  // 3..6
   G.up={wajan:1,kompor:0,minyak:0,tangki:0,panci:0,baskom:0,etalase:0,pegawai:0,spanduk:0,speaker:0};
   G.cleanRun = PERKS.some(p=>ownedPerk(p.id)>0) && !PERKS.some(p=>getPerk(p.id)>0);   // punya perk tapi semua OFF = run bersih
-  startDay();
+  if(G.endless){ G.day=10; G.oilOn=true; G.money=cents(G.money+ENDLESS_START); showShop(0,true); }   // Endless: mulai Hari 11 + modal mentah
+  else startDay();
 }
 /* ================= SKOR =================
    Skor = PEMASUKAN-BERSIH × TUMPUKAN PENGGANDA.
@@ -2636,7 +2637,7 @@ function tutorialHTML(){
 }
 let chosenMode=0;   // 0=Kampanye, 1=Endless
 function modePickHTML(){
-  const modes=[{n:"Kampanye",d:"10 hari, ada tamat. Buat belajar & santai."},{n:"Endless",d:"Terus sampai kalah — tiap hari lewat 10 makin susah."}];
+  const modes=[{n:"Kampanye",d:"10 hari, ada tamat. Buat belajar & santai."},{n:"Endless",d:"Mulai Hari 11 + modal awal. Makin lama makin susah."}];
   const pills=modes.map((mo,i)=>`<button class="tierPill${i===chosenMode?" sel":""}" data-t="${i}">${i===1?"🔥 ":""}${mo.n}</button>`).join("");
   return `<div class="tierRow">${pills}</div><div class="tierDesc" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin:7px 2px 2px;line-height:1.35">${modes[chosenMode].d}</div>`;
 }
