@@ -995,12 +995,12 @@ const ED=()=>G.endless?Math.max(0,G.day-10):0;
 // Napas tiap 6 hari endless (Prinsip 3: squeeze & release) -> spawn agak longgar.
 const EBREATH=()=>(G.endless && G.day>10 && (G.day-10)%6===0)?1.2:1;   // napas: spawn lebih longgar
 // Pengali kesulitan endless (naik pelan, ada cap biar tetap adil - Prinsip 8).
-const difRush  =()=>Math.max(0.42, 1 - ED()*0.028) * EBREATH();   // rush makin rapet
+const difRush  =()=>Math.max(0.40, 1 - ED()*0.034) * EBREATH();   // rush makin rapet
 const difCalm  =()=>Math.max(0.70, 1 - ED()*0.012);               // luar rush lebih santai
-const difPat   =()=>Math.max(0.62, 1 - ED()*0.018);               // kesabaran turun
-const difTarget=()=>1 + ED()*0.08;
-const difOil   =()=>Math.min(1.9, 1 + ED()*0.05);
-const difThief =()=>Math.min(2.6, 1 + ED()*0.06);
+const difPat   =()=>Math.max(0.58, 1 - ED()*0.023);               // kesabaran turun
+const difTarget=()=>1 + ED()*0.095;
+const difOil   =()=>Math.min(2.0, 1 + ED()*0.06);
+const difThief =()=>Math.min(2.7, 1 + ED()*0.07);
 /* perk permanen -> efek */
 const metaModal =()=>getPerk("modal")*5;      // +€ modal awal per level
 const metaPrepA =()=>getPerk("prep")*6;       // +adonan tiap buka
@@ -1966,7 +1966,7 @@ function setupEvents(day){
     news={who:"#ch-fire",title:"Menuju Puncak",msg:"\"Dua hari lagi. Semua tantangan aktif sekaligus. Gaskeun!\""}; }
   else if(day===10){ G.borongan=true;G.festival=true;G.blackoutRate=0.08;G.blackoutN=3;
     news={who:"#ch-flag",title:G.endless?"Puncak — Lanjut!":"Hari Terakhir!",msg:G.endless?"\"Lewat sini stand buka terus, tiap hari makin gila. Sampai mana kamu bertahan?\"":"\"Hari terakhir jualan. Habis-habisan ya!\""}; }
-  else if(day>10){ const ez=day-10; G.borongan=true;G.festival=true; G.blackoutN=ez<=2?1:ez<=5?2:3; G.blackoutRate=Math.min(0.10,0.03+ez*0.006);
+  else if(day>10){ const ez=day-10; G.borongan=true;G.festival=true; G.blackoutN=ez<=1?1:ez<=3?2:3; G.blackoutRate=Math.min(0.11,0.04+ez*0.007);
     news=((day-10)%6===0)?{who:"#ch-supp",title:"Agak Lengang",msg:"\"Hari ini rada sepi — pas buat napas & upgrade.\""}:null; }
   return news;
 }
