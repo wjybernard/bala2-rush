@@ -175,6 +175,7 @@
   .slot.ready{cursor:pointer;box-shadow:inset 0 3px 7px #000a, inset 0 0 0 2px var(--good), 0 0 0 2px var(--good);}
   .slot.ready .em{opacity:1;filter:saturate(1.15);animation:bounce .5s infinite alternate;}
   .slot.burnt .em{opacity:1;filter:brightness(.45) saturate(.5) sepia(.5);}
+  .slot.immune::after{content:"🔌";position:absolute;top:1px;right:2px;font-size:10px;line-height:1;z-index:3;filter:drop-shadow(0 1px 0 #0006);}
   .slot.off{background:
       repeating-linear-gradient(90deg,#00000030 0 1px,transparent 1px 6px),
       repeating-linear-gradient(0deg,#00000030 0 1px,transparent 1px 6px),
@@ -960,7 +961,7 @@ const G={
   rushOn:false, rushStart:0, rushEnd:0,
   blackoutRate:0, blackoutN:0, powerOut:false,
   borongan:false, festival:false, kapalCount:0, kapalNextDay:3, kapalDay:3,
-  up:{wajan:1,kompor:0,minyak:0,tangki:0,panci:0,baskom:0,etalase:0,pegawai:0,spanduk:0,speaker:0},
+  up:{wajan:1,kompor:0,minyak:0,tangki:0,panci:0,baskom:0,etalase:0,pegawai:0,spanduk:0,speaker:0,genset:0},
 };
 const PRICE=1.50;  // € per porsi bala2
 const ENDLESS_START=350;  // modal mentah pas mulai Endless (Hari 11)
@@ -995,12 +996,12 @@ const ED=()=>G.endless?Math.max(0,G.day-10):0;
 // Napas tiap 6 hari endless (Prinsip 3: squeeze & release) -> spawn agak longgar.
 const EBREATH=()=>(G.endless && G.day>10 && (G.day-10)%6===0)?1.2:1;   // napas: spawn lebih longgar
 // Pengali kesulitan endless (naik pelan, ada cap biar tetap adil - Prinsip 8).
-const difRush  =()=>Math.max(0.40, 1 - ED()*0.034) * EBREATH();   // rush makin rapet
+const difRush  =()=>Math.max(0.36, 1 - ED()*0.044) * EBREATH();   // rush makin rapet
 const difCalm  =()=>Math.max(0.70, 1 - ED()*0.012);               // luar rush lebih santai
-const difPat   =()=>Math.max(0.58, 1 - ED()*0.023);               // kesabaran turun
-const difTarget=()=>1 + ED()*0.095;
-const difOil   =()=>Math.min(2.0, 1 + ED()*0.06);
-const difThief =()=>Math.min(2.7, 1 + ED()*0.07);
+const difPat   =()=>Math.max(0.54, 1 - ED()*0.031);               // kesabaran turun
+const difTarget=()=>1 + ED()*0.135;
+const difOil   =()=>Math.min(2.3, 1 + ED()*0.08);
+const difThief =()=>Math.min(3.0, 1 + ED()*0.095);
 /* perk permanen -> efek */
 const metaModal =()=>getPerk("modal")*5;      // +€ modal awal per level
 const metaPrepA =()=>getPerk("prep")*6;       // +adonan tiap buka
@@ -1021,6 +1022,7 @@ const UPGRADES=[
   {k:"pegawai",ic:"🧑‍🍳",name:"Rekrut Pegawai",  desc:"Bantu pindahin bala2 matang ke penghangat (agak telat, gak instan). Investasi gede!", max:1, cost:l=>235},
   {k:"spanduk",ic:"🚩", name:"Spanduk Promosi",  desc:"Trinkgeld pembeli lebih besar", max:3, cost:l=>26+l*24},
   {k:"speaker",ic:"🔊", name:"Speaker Dangdut",  desc:"Pembeli lebih sabar", max:3, cost:l=>26+l*21},
+  {k:"genset",ic:"🔌", name:"Genset Cadangan",   desc:"1 wajan kebal mati lampu (maks 2 — gak bisa semua)", max:2, cost:l=>190+l*160},
 ];
 /* Endless money-sink: upgrade KAPASITAS boleh dibeli lebih jauh. Kompor/wajan/etalase tetap di-cap biar gak trivial. */
 const UPX={tangki:6, baskom:6, spanduk:6, speaker:6};
@@ -1348,7 +1350,8 @@ function renderSlots(){
   const cook=COOKTIME();
   G.slots.forEach((s,i)=>{
     const d=document.createElement("div");
-    d.className="slot "+s.state+(s.off?" off":"");
+    const im=Math.min(G.up.genset||0, G.slots.length-1);
+    d.className="slot "+s.state+(s.off?" off":"")+(i>=G.slots.length-im?" immune":"");
     d.dataset.i=i;
     let ring="";
     if(s.state==="cooking"){
@@ -1498,7 +1501,8 @@ function resetFuse(){
 }
 function tripPower(){
   if(G.powerOut)return;
-  const avail=[];G.slots.forEach((s,i)=>{if(!s.off)avail.push(i);});
+  const im=Math.min(G.up.genset||0, G.slots.length-1);   // wajan kebal = index paling kanan, minimal 1 tetap rawan
+  const avail=[];G.slots.forEach((s,i)=>{if(!s.off && i < G.slots.length-im)avail.push(i);});
   const n=Math.min(G.blackoutN,avail.length);
   for(let k=0;k<n;k++){
     const i=avail.splice(Math.floor(Math.random()*avail.length),1)[0];
@@ -1966,7 +1970,7 @@ function setupEvents(day){
     news={who:"#ch-fire",title:"Menuju Puncak",msg:"\"Dua hari lagi. Semua tantangan aktif sekaligus. Gaskeun!\""}; }
   else if(day===10){ G.borongan=true;G.festival=true;G.blackoutRate=0.08;G.blackoutN=3;
     news={who:"#ch-flag",title:G.endless?"Puncak — Lanjut!":"Hari Terakhir!",msg:G.endless?"\"Lewat sini stand buka terus, tiap hari makin gila. Sampai mana kamu bertahan?\"":"\"Hari terakhir jualan. Habis-habisan ya!\""}; }
-  else if(day>10){ const ez=day-10; G.borongan=true;G.festival=true; G.blackoutN=ez<=1?1:ez<=3?2:3; G.blackoutRate=Math.min(0.11,0.04+ez*0.007);
+  else if(day>10){ const ez=day-10; G.borongan=true;G.festival=true; G.blackoutN=ez<=1?1:ez<=2?2:3; G.blackoutRate=Math.min(0.12,0.05+ez*0.009);
     news=((day-10)%6===0)?{who:"#ch-supp",title:"Agak Lengang",msg:"\"Hari ini rada sepi — pas buat napas & upgrade.\""}:null; }
   return news;
 }
@@ -2172,7 +2176,7 @@ function showShop(bonus, prep){
         <span class="lvl">${"❤️".repeat(G.hearts)}${"🖤".repeat(mh-G.hearts)}</span></div>
       <button id="buyLife" ${bisaBeli?"":"disabled"}>${rupiah(lc)}</button></div>` : "";
   // upgrade yg berhubungan sama mekanik yg belum kebuka: jangan dimunculin (biar gak spoiler)
-  const visible=UPGRADES.filter(u=>u.k!=="tangki"||G.oilOn);
+  const visible=UPGRADES.filter(u=>(u.k!=="tangki"||G.oilOn) && (u.k!=="genset"||G.endless||G.blackoutN>0));
   const rows=visible.map(u=>{
     const um=upMax(u),lvl=G.up[u.k],maxed=lvl>=um,cost=UPCOST(u,lvl),afford=G.money>=cost&&!maxed;
     return `<div class="up"><span class="ic">${u.ic}</span>
@@ -2215,7 +2219,7 @@ function resetGame(){
            tipTotal:0, earned:0};
   G.tipToday=0;G.livesBought=0;
   G.kapalCount=0; G.kapalNextDay=3; G.kapalDay=3+Math.floor(Math.random()*4);  // 3..6
-  G.up={wajan:1,kompor:0,minyak:0,tangki:0,panci:0,baskom:0,etalase:0,pegawai:0,spanduk:0,speaker:0};
+  G.up={wajan:1,kompor:0,minyak:0,tangki:0,panci:0,baskom:0,etalase:0,pegawai:0,spanduk:0,speaker:0,genset:0};
   G.cleanRun = PERKS.some(p=>ownedPerk(p.id)>0) && !PERKS.some(p=>getPerk(p.id)>0);   // punya perk tapi semua OFF = run bersih
   if(G.endless){ G.day=10; G.oilOn=true; G.money=cents(G.money+ENDLESS_START); showShop(0,true); }   // Endless: mulai Hari 11 + modal mentah
   else startDay();
