@@ -853,7 +853,7 @@
 
 <div id="game">
   <div id="feverBanner" style="display:none">
-    <span class="fvTxt">🔥 FEVER · Poin x2</span>
+    <span class="fvTxt">🔥 FEVER · Hasil x2</span>
     <div class="fvBarWrap"><div class="fvBar" id="feverBar"></div></div>
   </div>
   <div class="topbar">
@@ -954,7 +954,7 @@ const G={
   stats:{porsi:0,served:0,walkouts:0,burnt:0,fuseDown:0,oilDown:0,stolen:0,stolenAmt:0,bestCombo:0,
          tipTotal:0, earned:0},   // earned = total masuk (bukan sisa kas) -> beli upgrade gak ngurangin skor
   customers:[], spawnTimer:0, spawnEvery:4, custId:0,
-  batterOpen:false, combo:0, tier:0,
+  batterOpen:false, combo:0, endless:false,
   fever:false, feverT:0,
   rushOn:false, rushStart:0, rushEnd:0,
   blackoutRate:0, blackoutN:0, powerOut:false,
@@ -987,17 +987,18 @@ const FEVERMULT=2;                    // penghasilan dikali segini selama fever
    G.tier 0/1/2 = Normal/Sulit/Ekstrem. Makin tinggi makin berat TAPI ⭐ lebih banyak.
    Perk permanen kecil-kecil (kesimpen di HP), diimbangi kesulitan yg naik biar gak
    kegampangan buat pemain lama. */
-const TIERS=["Normal","Sulit","Ekstrem"];
-const TIERRUSH  =[1, 0.80, 0.56];    // jeda spawn PAS RUSH (kecil = puncak makin ganas)
-const TIERCALM  =[1, 0.96, 0.90];    // jeda spawn di LUAR rush (dijaga longgar = ada napas)
-const TIERPAT   =[1, 0.90, 0.74];    // pengali kesabaran (kecil = pembeli cepat kabur)
-const TIERTARGET=[1, 1.12, 1.30];    // pengali target jualan per hari
-const TIEROIL   =[1, 1.28, 1.65];    // pengali boros minyak
-const TIERTHIEF =[1, 1.50, 2.20];    // pengali seringnya maling
-const TIERSTAR  =[1, 2, 3];          // pengali ⭐ yg didapat
-const OILDAY    =[3, 2, 1];          // hari minyak mulai aktif per tingkat
-const THIEFDAY  =[5, 4, 3];          // hari maling mulai muncul per tingkat
-const T=()=>G.tier||0;
+const OILDAY0=3, THIEFDAY0=5;        // hari mekanik mulai (sama utk kedua mode)
+// Endless: kedalaman = berapa hari lewat Hari 10. Kampanye = selalu 0.
+const ED=()=>G.endless?Math.max(0,G.day-10):0;
+// Napas tiap 6 hari endless (Prinsip 3: squeeze & release) -> spawn agak longgar.
+const EBREATH=()=>(G.endless && G.day>10 && (G.day-10)%6===0)?1.2:1;   // napas: spawn lebih longgar
+// Pengali kesulitan endless (naik pelan, ada cap biar tetap adil - Prinsip 8).
+const difRush  =()=>Math.max(0.42, 1 - ED()*0.028) * EBREATH();   // rush makin rapet
+const difCalm  =()=>Math.max(0.70, 1 - ED()*0.012);               // luar rush lebih santai
+const difPat   =()=>Math.max(0.62, 1 - ED()*0.018);               // kesabaran turun
+const difTarget=()=>1 + ED()*0.08;
+const difOil   =()=>Math.min(1.9, 1 + ED()*0.05);
+const difThief =()=>Math.min(2.6, 1 + ED()*0.06);
 /* perk permanen -> efek */
 const metaModal =()=>getPerk("modal")*5;      // +€ modal awal per level
 const metaPrepA =()=>getPerk("prep")*6;       // +adonan tiap buka
@@ -1019,6 +1020,9 @@ const UPGRADES=[
   {k:"spanduk",ic:"🚩", name:"Spanduk Promosi",  desc:"Trinkgeld pembeli lebih besar", max:3, cost:l=>26+l*24},
   {k:"speaker",ic:"🔊", name:"Speaker Dangdut",  desc:"Pembeli lebih sabar", max:3, cost:l=>26+l*21},
 ];
+/* Endless money-sink: upgrade KAPASITAS boleh dibeli lebih jauh. Kompor/wajan/etalase tetap di-cap biar gak trivial. */
+const UPX={tangki:6, baskom:6, spanduk:6, speaker:6};
+const upMax=(u)=>u.max + (G.endless?(UPX[u.k]||0):0);
 
 /* ================= MESIN AUDIO =================
    - 1 buffer noise dipakai ulang (dulu bikin buffer baru tiap suara -> berat di HP)
@@ -1364,7 +1368,7 @@ function fryOne(i){
   if(G.adonan<1)return false;
   if(!canFry())return false;
   G.adonan--;s.state="cooking";s.t=0;
-  if(G.oilOn) G.oil=Math.max(0,G.oil-OILUSE*TIEROIL[T()]);   // kesulitan: makin boros
+  if(G.oilOn) G.oil=Math.max(0,G.oil-OILUSE*difOil());   // endless: makin boros
   return true;
 }
 function clickSlot(i){
@@ -1595,7 +1599,7 @@ function makeCustomer(){
   const buru=d>=2&&!borongan&&Math.random()<Math.min(.05+d*0.02,.22);
   // hari WM (festival): banyak supporter timnas Jerman — jersey putih + bendera di pipi
   const supporter=G.festival&&!kapal&&Math.random()<0.5;
-  let pat=(12+qty*1.9)*PATIENCE()*TIERPAT[T()];   // kesulitan tinggi: pembeli lebih gak sabar
+  let pat=(12+qty*1.9)*PATIENCE()*difPat();   // endless makin dalam: pembeli lebih gak sabar
   if(buru)pat*=0.75; if(bungkus)pat*=1.2; if(borongan)pat*=1.5; if(kapal)pat*=1.4;
   pat/=(1+d*0.02);
   const c={id:++G.custId,
@@ -1927,7 +1931,7 @@ function loop(ts){
   G.spawnTimer-=dt;
   if(G.spawnTimer<=0&&G.customers.length<MAXVISIBLE()){
     makeCustomer();
-    let base=G.rushOn ? G.spawnEvery*0.65*TIERRUSH[T()] : G.spawnEvery*TIERCALM[T()];  // ritme: rush ganas, luar rush ada napas
+    let base=G.rushOn ? G.spawnEvery*0.65*difRush() : G.spawnEvery*difCalm();  // ritme: rush ganas, luar rush ada napas
     if(G.festival)base*=0.85;
     G.spawnTimer=base*(0.8+Math.random()*0.5);
   }
@@ -1940,9 +1944,8 @@ function loop(ts){
 /* ---------- day flow (tantangan gak dibocorin di awal) ---------- */
 function setupEvents(day){
   G.blackoutRate=0;G.blackoutN=0;G.borongan=false;G.festival=false;
-  G.oilOn=day>=OILDAY[T()];
-  const td=THIEFDAY[T()];
-  G.thiefOn=day>=td; G.thiefRate=(day>=td?(0.016+(day-td)*0.004):0)*TIERTHIEF[T()];  // maling mulai lebih awal & lebih sering di tingkat tinggi
+  G.oilOn=day>=OILDAY0;
+  G.thiefOn=day>=THIEFDAY0; G.thiefRate=(day>=THIEFDAY0?(0.016+(day-THIEFDAY0)*0.004):0)*difThief();  // endless: maling makin sering
   let news=null;
   if(day===3) news={who:"#ch-supp",title:"Minyak",demo:"oil",
     msg:"\"Kalau minyak mau habis, ditambahin ya. Kalau habis, gak bisa goreng.\""};
@@ -1960,15 +1963,16 @@ function setupEvents(day){
   else if(day===9){ G.borongan=true;G.festival=true;G.blackoutRate=0.075;G.blackoutN=3;
     news={who:"#ch-fire",title:"Menuju Puncak",msg:"\"Dua hari lagi. Semua tantangan aktif sekaligus. Gaskeun!\""}; }
   else if(day===10){ G.borongan=true;G.festival=true;G.blackoutRate=0.08;G.blackoutN=3;
-    news={who:"#ch-flag",title:"Hari Terakhir!",msg:"\"Hari terakhir jualan. Habis-habisan ya!\""}; }
-  if(T()>0 && news && news.demo) news=null;   // tingkat tinggi: udah paham, gak perlu tutorial ulang
+    news={who:"#ch-flag",title:G.endless?"Puncak — Lanjut!":"Hari Terakhir!",msg:G.endless?"\"Lewat sini stand buka terus, tiap hari makin gila. Sampai mana kamu bertahan?\"":"\"Hari terakhir jualan. Habis-habisan ya!\""}; }
+  else if(day>10){ G.borongan=true;G.festival=true;G.blackoutRate=Math.min(0.11,0.08+ED()*0.004);G.blackoutN=3;
+    news=((day-10)%6===0)?{who:"#ch-supp",title:"Agak Lengang",msg:"\"Hari ini rada sepi — pas buat napas & upgrade.\""}:null; }
   return news;
 }
 function startDay(){
   G.day++;
   G.dayLen=Math.round((55+G.day*3)*0.81);   // hari dipendekin 10% lagi (total ~19%)
   G.timeLeft=G.dayLen;
-  G.served=0;G.target=Math.round((4+G.day*1.2)*0.81*TIERTARGET[T()]);   // kesulitan tinggi: target lebih besar
+  G.served=0;G.target=Math.round((4+G.day*1.2)*0.81*difTarget());   // endless: target naik tiap hari
   G.spawnEvery=Math.max(2.6,5.0-G.day*0.18);   // awal udah lumayan padat, akhir tetep sama
   G.customers=[];G.spawnTimer=1.5;
   G.warm=metaPrepW();G.adonan=18+metaPrepA();G.saus=SAUCECAP();   // perk Prep Subuh
@@ -2065,7 +2069,7 @@ function endDay(){
   if(G.batterOpen)closeBatter();
   const bonus=G.served>=G.target?cents(G.target*PRICE*0.3):0;
   if(bonus){G.money=cents(G.money+bonus); G.stats.earned=cents(G.stats.earned+bonus); updateHUD();}
-  if(G.day>=10){endGame(true);return;}
+  if(!G.endless && G.day>=10){endGame(true);return;}   // Kampanye tamat di 10; Endless lanjut
   showShop(bonus);
 }
 function endGame(win){
@@ -2080,7 +2084,6 @@ function endGame(win){
   const bolehSimpan=masukPapan(skor);
   // ⭐ Bintang + buka tingkat kesulitan berikutnya
   const gotStars=starsFromRun(win); if(gotStars>0) addStars(gotStars);
-  const tierBaru = win ? unlockTier(T()+1) : false;
 
   // DIAGNOSIS: kenapa rugi — diurut dari yang paling bikin rugi
   const probs=[];
@@ -2097,20 +2100,15 @@ function endGame(win){
   const bersih=Math.max(0,s.earned-s.stolenAmt);
   $("card").innerHTML=`<div class="newsChar">${win?"🎉":"😵"}</div>
     <h1>${win?"TAMAT — Mantap!":"Stand Tutup"}</h1>
-    <p>${win?`Berhasil lewatin 10 hari penuh — juragan bala2 sejati! <small>(${TIERS[T()]})</small>`:`Reputasi habis di <b>Hari ${G.day}</b>.`}</p>
+    <p>${win?`Berhasil lewatin 10 hari penuh — juragan bala2 sejati!`:(G.endless?`Bertahan sampai <b>Hari ${G.day}</b> di Endless! 🔥`:`Reputasi habis di <b>Hari ${G.day}</b>.`)}</p>
 
-    ${gotStars>0?`<div class="starGain">+${gotStars} ⭐ Bintang${T()>0?` <small>(×${TIERSTAR[T()]} ${TIERS[T()]})</small>`:""}</div>`:""}
-    ${tierBaru?`<div class="tierUnlock">🔓 Tingkat <b>${TIERS[T()+1]}</b> kebuka!</div>`:""}
+    ${gotStars>0?`<div class="starGain">+${gotStars} ⭐ Bintang${G.cleanRun?` <small>(run bersih ×1,5)</small>`:""}</div>`:""}
 
     <div class="scoreBox">
-      <div class="scoreLbl">SKOR${win?" · TAMAT 🏁":` · Hari ${G.day}`}</div>
-      <div class="scoreVal">${skor.toLocaleString("de-DE")}${rekorSkor?' <span class="rec">REKOR!</span>':''}</div>
-      <div class="scoreSub">
-        Bersih ${rupiah(Math.max(0,s.earned-s.stolenAmt))}
-        ${s.stolenAmt>0?`<small>(pemasukan ${rupiah(s.earned)} − colong ${rupiah(s.stolenAmt)})</small>`:""}
-        &nbsp;×&nbsp;<b>${scoreMult(win).toFixed(2).replace(".",",")}</b>
-      </div>
-      <div class="multBreak">${scoreParts(win).map(p=>`<span>${p.label} <b>+${p.v.toFixed(2).replace(".",",")}</b></span>`).join(" · ")||"<span>pengganda dasar ×1</span>"}</div>
+      <div class="scoreLbl">TOTAL${G.endless?` · Hari ${G.day} 🔥`:(win?" · TAMAT 🏁":` · Hari ${G.day}`)}</div>
+      <div class="scoreVal">${rupiah(skor)}${rekorSkor?' <span class="rec">REKOR!</span>':''}</div>
+      <div class="scoreSub">Pemasukan bersih ${rupiah(bersih)}${s.stolenAmt>0?` <small>(− colong ${rupiah(s.stolenAmt)})</small>`:""}</div>
+      <div class="multBreak">${scoreParts(win).map(p=>`<span>${p.label} <b>+${rupiah(bersih*p.v)}</b></span>`).join(" · ")||"<span>tanpa bonus</span>"}</div>
     </div>
 
     <div class="stats">
@@ -2128,7 +2126,7 @@ function endGame(win){
       <button class="bigbtn half" id="egHome" style="background:#5a8f3f">🏠 Menu Utama</button>
     </div>`;
   $("overlay").style.display="flex";
-  $("again").onclick=()=>resetGame();     // main lagi di tingkat yang sama
+  $("again").onclick=()=>resetGame();     // main lagi di mode yang sama
   $("egStar").onclick=()=>showPerkShop(()=>{ $("menu").style.display="none"; });
   $("egHome").onclick=()=>{ $("menu").style.display="none"; showIntro(); };
 
@@ -2174,9 +2172,9 @@ function showShop(bonus){
   // upgrade yg berhubungan sama mekanik yg belum kebuka: jangan dimunculin (biar gak spoiler)
   const visible=UPGRADES.filter(u=>u.k!=="tangki"||G.oilOn);
   const rows=visible.map(u=>{
-    const lvl=G.up[u.k],maxed=lvl>=u.max,cost=UPCOST(u,lvl),afford=G.money>=cost&&!maxed;
+    const um=upMax(u),lvl=G.up[u.k],maxed=lvl>=um,cost=UPCOST(u,lvl),afford=G.money>=cost&&!maxed;
     return `<div class="up"><span class="ic">${u.ic}</span>
-      <div class="info"><b>${u.name}</b><div>${u.desc}</div><span class="lvl">Lv ${lvl}/${u.max}</span></div>
+      <div class="info"><b>${u.name}</b><div>${u.desc}</div><span class="lvl">Lv ${lvl}/${um}</span></div>
       <button data-k="${u.k}" ${afford?"":"disabled"}>${maxed?"MAX":rupiah(cost)}</button></div>`;
   }).join("");
   const met=G.served>=G.target;
@@ -2197,11 +2195,11 @@ function showShop(bonus){
   };
   c.querySelectorAll(".shop button[data-k]").forEach(b=>b.onclick=()=>{
     const u=UPGRADES.find(x=>x.k===b.dataset.k),lvl=G.up[u.k];
-    if(lvl>=u.max)return;
+    if(lvl>=upMax(u))return;
     const cost=UPCOST(u,lvl);
     if(G.money<cost)return;
     G.money=cents(G.money-cost);G.up[u.k]++;
-    if(G.up[u.k]>=u.max) unlock("maxup");
+    if(G.up[u.k]>=upMax(u)) unlock("maxup");
     showShop(0);
   });
   $("next").onclick=startDay;
@@ -2225,19 +2223,18 @@ function resetGame(){
    Pengganda di-earn lewat cara main: kesulitan, combo, nyawa sisa, tamat.
    Bikin skor punya banyak sumbu (gak flat) & leaderboard jadi soal skill,
    bukan sekadar jualan lama-lama.                                   */
-const FINISHBONUS=0.15;               // lapis pengganda kalau tamat 10 hari
-const TIERSCORE=[0, 0.6, 1.5];        // lapis pengganda per tingkat kesulitan
+const FINISHBONUS=0.15;               // bonus € kalau tamat Kampanye 10 hari
 const COMBOCAP=0.6;                   // batas sumbangan combo
-/* rincian pengganda -> buat ditampilin di layar akhir */
+/* rincian bonus (% pemasukan) -> ditampilin di layar akhir jadi € */
 function scoreParts(win){
   const parts=[];
-  if(TIERSCORE[T()]>0) parts.push({label:TIERS[T()], v:TIERSCORE[T()]});
   const cb=Math.min(G.stats.bestCombo*0.015, COMBOCAP);
   if(cb>0) parts.push({label:"Combo x"+G.stats.bestCombo, v:cb});
   const hp=Math.max(0,G.hearts)*0.08;
   if(hp>0) parts.push({label:Math.max(0,G.hearts)+" nyawa sisa", v:hp});
   if(G.cleanRun) parts.push({label:"Tanpa Perk ✊", v:0.4});
-  if(win) parts.push({label:"Tamat 🏁", v:FINISHBONUS});
+  if(G.endless){ const ez=Math.max(0,G.day-10); if(ez>0) parts.push({label:"Endless +"+ez+" hari", v:ez*0.1}); }
+  else if(win) parts.push({label:"Tamat 🏁", v:FINISHBONUS});
   return parts;
 }
 function scoreMult(win){ return 1 + scoreParts(win).reduce((a,p)=>a+p.v, 0); }
@@ -2249,17 +2246,16 @@ function runScore(win){
 /* ============ PAPAN SKOR (top 5, pakai nama) ============
    Dulu cuma nyimpen 1 angka rekor. Sekarang 5 besar + nama pemain.
    v1 = skor berbasis pemasukan. */
-const BOARDVER=2, BOARDMAX=5;   // v2 = skor pakai tumpukan pengganda (skala beda, rekor lama dibuang)
-function getBoard(){
-  try{
-    const o=JSON.parse(localStorage.getItem("bala2_board"));
-    if(!o || o.v!==BOARDVER || !Array.isArray(o.list)) return [];
-    return o.list;
-  }catch(e){ return []; }
+const BOARDVER=3, BOARDMAX=5;   // v3 = papan dipisah Kampanye (k) & Endless (e), satuan €
+function boardKey(){ return G.endless?"e":"k"; }
+function getAllBoards(){
+  try{ const o=JSON.parse(localStorage.getItem("bala2_board"));
+    if(!o || o.v!==BOARDVER) return {v:BOARDVER,k:[],e:[]};
+    return {v:BOARDVER, k:Array.isArray(o.k)?o.k:[], e:Array.isArray(o.e)?o.e:[]};
+  }catch(e){ return {v:BOARDVER,k:[],e:[]}; }
 }
-function saveBoard(list){
-  try{ localStorage.setItem("bala2_board",JSON.stringify({v:BOARDVER,list:list.slice(0,BOARDMAX)})); }catch(e){}
-}
+function getBoard(mode){ const a=getAllBoards(); return a[mode||boardKey()]||[]; }
+function saveBoard(list,mode){ const a=getAllBoards(); a[mode||boardKey()]=list.slice(0,BOARDMAX); try{ localStorage.setItem("bala2_board",JSON.stringify(a)); }catch(e){} }
 function getName(){ try{ return localStorage.getItem("bala2_name")||""; }catch(e){ return ""; } }
 function setName(n){ try{ localStorage.setItem("bala2_name",n); }catch(e){} }
 /* masuk 5 besar? kalau papan belum penuh, skor apa pun (>0) masuk */
@@ -2270,7 +2266,7 @@ function masukPapan(score){
 }
 /* simpan, balikin peringkatnya (0-based) */
 function tambahSkor(name,score,porsi,day,win){
-  const e={name:name.slice(0,12),score,porsi,day,win,ts:Date.now()};
+  const e={name:name.slice(0,12),score,porsi,day,win,endless:G.endless,ts:Date.now()};
   const l=getBoard();
   l.push(e);
   l.sort((a,b)=>b.score-a.score || b.porsi-a.porsi);
@@ -2296,8 +2292,8 @@ function papanHTML(sorotTs){
     <div class="bRow${e.ts===sorotTs?" me":""}">
       <span class="bPos">${medali[i]||(i+1)+"."}</span>
       <span class="bName">${esc(e.name)}</span>
-      <span class="bMeta">${e.win?"🏁":"H"+e.day}</span>
-      <b class="bScore">${e.score.toLocaleString("de-DE")}</b>
+      <span class="bMeta">${e.endless?"🔥H"+e.day:(e.win?"🏁":"H"+e.day)}</span>
+      <b class="bScore">${rupiah(e.score)}</b>
     </div>`).join("")}</div>`;
 }
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2333,9 +2329,9 @@ function addStars(n){ const m=getMeta(); m.stars=(m.stars||0)+n; saveMeta(m); }
 function unlockTier(t){ const m=getMeta(); if(t>m.maxTier){ m.maxTier=Math.min(2,t); saveMeta(m); return true; } return false; }
 /* ⭐ dari satu run: per 20 porsi + bonus tamat, dikali sesuai kesulitan */
 function starsFromRun(win){
-  // ⭐ dikurangin biar gak kecepetan: per 35 porsi + bonus tamat kecil, dikali kesulitan
   const base=Math.floor(G.stats.porsi/35) + (win?3:0);
-  return Math.round(base * TIERSTAR[T()] * (G.cleanRun?1.5:1));   // run bersih = +50% ⭐
+  const ez=G.endless?Math.max(0,G.day-10):0;              // makin jauh di endless = makin banyak ⭐
+  return Math.round((base + ez*0.5) * (G.cleanRun?1.5:1));
 }
 /* Toko Bintang — beli perk permanen. 'back' = tombol kembali. */
 function showPerkShop(back){
@@ -2394,8 +2390,8 @@ const ACHS=[
   {id:"finish",  ic:"🏁", name:"Tamat!",            desc:"Bertahan sampai Hari 10."},
   {id:"noburn",  ic:"✨", name:"Chef Berbakat",     desc:"Tamat tanpa satu pun bala2 gosong."},
   {id:"flawless",ic:"💎", name:"Tanpa Cela",        desc:"Tamat tanpa satu pun pembeli kabur."},
-  {id:"tsulit",  ic:"🥈", name:"Tahan Banting",     desc:"Tamat 10 hari di tingkat Sulit."},
-  {id:"tekstrem",ic:"💀", name:"Sang Legenda",      desc:"Tamat 10 hari di tingkat Ekstrem."},
+  {id:"tsulit",  ic:"🥈", name:"Tahan Banting",     desc:"Bertahan sampai Hari 15 di Endless."},
+  {id:"tekstrem",ic:"💀", name:"Sang Legenda",      desc:"Bertahan sampai Hari 25 di Endless."},
 ];
 function getAch(){
   try{ const o=JSON.parse(localStorage.getItem("bala2_ach"));
@@ -2462,9 +2458,9 @@ function checkRunAch(win){
     unlock("finish");
     if(s.burnt===0) unlock("noburn");
     if(s.walkouts===0 && G.livesBought===0) unlock("flawless");   // gak ada pembeli kabur = tanpa cela
-    if(T()>=1) unlock("tsulit");     // tamat Sulit/Ekstrem
-    if(T()>=2) unlock("tekstrem");   // tamat Ekstrem
   }
+  if(G.endless && G.day>=15) unlock("tsulit");    // Endless: bertahan jauh
+  if(G.endless && G.day>=25) unlock("tekstrem");
 }
 /* ---------- MENU / PAUSE ---------- */
 function pauseGame(){
@@ -2638,37 +2634,30 @@ function tutorialHTML(){
   </div>
   <div class="tNote">❤️ Pembeli kabur = ilang 1 hati. Habis 3 hati = warung tutup.<br>🏁 Bertahan sampai <b>Hari ke-10</b>.</div>`;
 }
-let chosenTier=0;
-function tierPickHTML(){
-  const m=getMeta();
-  const pills=TIERS.map((nm,i)=>{
-    const locked=i>m.maxTier, sel=i===chosenTier&&!locked;
-    return `<button class="tierPill${sel?" sel":""}${locked?" lock":""}" data-t="${i}" ${locked?"disabled":""}>
-      ${locked?"🔒 ":""}${nm}${i>0?` <small>+${(TIERSTAR[i])}× ⭐</small>`:""}</button>`;
-  }).join("");
-  const DESC=["Santai, buat belajar.","Lebih padat, bahaya muncul lebih cepat.","Rush brutal, minyak dari Hari 1."];
-  return `<div class="tierRow">${pills}</div><div class="tierDesc" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin:7px 2px 2px;line-height:1.35">${DESC[chosenTier]||""}</div>`;
+let chosenMode=0;   // 0=Kampanye, 1=Endless
+function modePickHTML(){
+  const modes=[{n:"Kampanye",d:"10 hari, ada tamat. Buat belajar & santai."},{n:"Endless",d:"Terus sampai kalah — tiap hari lewat 10 makin susah."}];
+  const pills=modes.map((mo,i)=>`<button class="tierPill${i===chosenMode?" sel":""}" data-t="${i}">${i===1?"🔥 ":""}${mo.n}</button>`).join("");
+  return `<div class="tierRow">${pills}</div><div class="tierDesc" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin:7px 2px 2px;line-height:1.35">${modes[chosenMode].d}</div>`;
 }
 function showIntro(){
   const m=getMeta();
-  if(chosenTier>m.maxTier) chosenTier=m.maxTier;
   $("card").innerHTML=`<h1><span class="bala"></span> Bala2 Rush</h1>
     ${tutorialHTML()}
-    <div class="pickLbl">Tingkat kesulitan</div>
-    ${tierPickHTML()}
+    <div class="pickLbl">Pilih mode</div>
+    ${modePickHTML()}
     <button class="bigbtn green" id="start">Mulai Jualan! 🔥</button>
     <div class="introBtns">
       <button class="bigbtn half" id="introStar" style="background:#c9902a">⭐ Toko Bintang${m.stars>0?` (${m.stars})`:""}</button>
       <button class="bigbtn half" id="introAch" style="background:#5a8f3f">🏅 Achievements</button>
     </div>
-    ${(()=>{const b=getBest(); return b.score>0
-      ? `<div class="recline">🏆 Rekor: <b>${esc(b.name)}</b> · ${b.score.toLocaleString("de-DE")}${b.win?" · pernah tamat 🏁":""}</div>`
-      : "";})()}`;
+    ${(()=>{const l=getBoard(chosenMode===1?"e":"k"); if(!l.length) return ""; const b=l[0];
+      return `<div class="recline">🏆 Rekor ${chosenMode===1?"Endless":"Kampanye"}: <b>${esc(b.name)}</b> · ${rupiah(b.score)}${b.endless?" 🔥H"+b.day:(b.win?" 🏁":"")}</div>`;})()}`;
   $("overlay").style.display="flex";
   $("card").querySelectorAll(".tierPill[data-t]").forEach(b=>b.onclick=()=>{
-    if(b.disabled) return; chosenTier=+b.dataset.t; sfx("click"); showIntro();
+    chosenMode=+b.dataset.t; sfx("click"); showIntro();
   });
-  $("start").onclick=()=>{ G.tier=chosenTier; resetGame(); };
+  $("start").onclick=()=>{ G.endless=(chosenMode===1); resetGame(); };
   $("introStar").onclick=()=>showPerkShop(()=>{ showIntro(); $("menu").style.display="none"; });
   $("introAch").onclick=()=>showAch(()=>{ $("menu").style.display="none"; });
 }
