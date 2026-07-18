@@ -2357,7 +2357,7 @@ function showPerkShop(back){
   }).join("");
   $("menuCard").innerHTML=`<h1>⭐ Toko Bintang</h1>
     <div class="starBal">Punya <b>${m.stars} ⭐</b></div>
-    <div class="perkHint" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin-bottom:6px">Matiin perk tertentu buat nyoba tanpa bantuan. Matiin SEMUA perk yg dimiliki = run bersih → bonus skor & ⭐.</div>
+    <div class="perkHint" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin-bottom:6px">Matiin semua perk = run bersih (bonus skor & ⭐).</div>
     <div class="perkList">${rows}</div>
     <button class="bigbtn green" id="perkBack">⬅️ Kembali</button>`;
   $("menu").style.display="flex";
@@ -2646,7 +2646,7 @@ function tierPickHTML(){
     return `<button class="tierPill${sel?" sel":""}${locked?" lock":""}" data-t="${i}" ${locked?"disabled":""}>
       ${locked?"🔒 ":""}${nm}${i>0?` <small>+${(TIERSTAR[i])}× ⭐</small>`:""}</button>`;
   }).join("");
-  const DESC=["Santai — tantangan dikenalin bertahap. Pas buat belajar.","Pembeli lebih rapet & kurang sabar. Minyak & maling muncul lebih cepat.","Rush brutal, pembeli cepat kabur, minyak dari Hari 1. Buat yang cari nightmare."];
+  const DESC=["Santai, buat belajar.","Lebih padat, bahaya muncul lebih cepat.","Rush brutal, minyak dari Hari 1."];
   return `<div class="tierRow">${pills}</div><div class="tierDesc" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin:7px 2px 2px;line-height:1.35">${DESC[chosenTier]||""}</div>`;
 }
 function showIntro(){
