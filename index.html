@@ -1970,7 +1970,7 @@ function setupEvents(day){
     news={who:"#ch-fire",title:"Menuju Puncak",msg:"\"Dua hari lagi. Semua tantangan aktif sekaligus. Gaskeun!\""}; }
   else if(day===10){ G.borongan=true;G.festival=true;G.blackoutRate=0.08;G.blackoutN=3;
     news={who:"#ch-flag",title:G.endless?"Puncak — Lanjut!":"Hari Terakhir!",msg:G.endless?"\"Lewat sini stand buka terus, tiap hari makin gila. Sampai mana kamu bertahan?\"":"\"Hari terakhir jualan. Habis-habisan ya!\""}; }
-  else if(day>10){ const ez=day-10; G.borongan=true;G.festival=true; G.blackoutN=ez<=1?1:ez<=2?2:3; G.blackoutRate=Math.min(0.12,0.05+ez*0.009);
+  else if(day>10){ const ez=day-10; G.borongan=true;G.festival=true; G.blackoutN=3; G.blackoutRate=Math.min(0.12,0.06+ez*0.009);   // N3 dari Hari 11 (Genset jadi kuncinya)
     news=((day-10)%6===0)?{who:"#ch-supp",title:"Agak Lengang",msg:"\"Hari ini rada sepi — pas buat napas & upgrade.\""}:null; }
   return news;
 }
