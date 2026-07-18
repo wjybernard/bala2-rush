@@ -1,7 +1,7 @@
 /* Bala2 Rush — service worker
    Bikin game jalan OFFLINE. Naikin CACHE_VERSION tiap update game
    biar HP pemain narik versi baru. */
-const CACHE_VERSION = "bala2-rush-v41";
+const CACHE_VERSION = "bala2-rush-v42";
 
 const ASSETS = [
   "./",
