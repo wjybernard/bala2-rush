@@ -45,7 +45,7 @@
     -webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent;}
   /* pakai dvh biar gak ketutupan address bar HP (Samsung/Chrome) */
   #game{position:fixed;inset:0;display:flex;flex-direction:column;max-width:940px;margin:0 auto;
-    height:100vh;height:100dvh;overflow:hidden;}
+    height:100vh;height:100dvh;height:var(--appvh,100dvh);overflow:hidden;}
 
   /* safe-area: biar gak ketiban notch / status bar pas mode app */
   .topbar{display:flex;gap:6px;align-items:center;color:#fff2dd;flex-wrap:wrap;
@@ -2786,6 +2786,7 @@ document.addEventListener("visibilitychange",()=>{
   }
 });
 
+(function(){function setVH(){var vv=window.visualViewport;document.documentElement.style.setProperty("--appvh",(vv?vv.height:window.innerHeight)+"px");}setVH();addEventListener("resize",setVH);addEventListener("orientationchange",function(){setTimeout(setVH,150);});if(window.visualViewport)visualViewport.addEventListener("resize",setVH);setTimeout(setVH,300);setTimeout(setVH,800);})();
 loadSettings();
 applyAchMigrations();
 showIntro();
