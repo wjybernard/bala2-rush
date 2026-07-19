@@ -2327,6 +2327,7 @@ function getMeta(){
 /* penghitung seumur karier (buat achievement kumulatif) */
 function bumpLife(k){ const m=getMeta(); m.life[k]=(m.life[k]||0)+1; saveMeta(m); return m.life[k]; }
 function bumpLifeBy(k,n){ const m=getMeta(); m.life[k]=(m.life[k]||0)+n; saveMeta(m); return m.life[k]; }
+function campDone(){ return !!getMeta().life.campDone || getBoard("k").some(function(e){return e.win;}); }
 function saveMeta(m){ try{ localStorage.setItem("bala2_meta",JSON.stringify({v:METAVER,...m})); }catch(e){} }
 /* level yg BENERAN dimiliki (buat tampilan toko) */
 function ownedPerk(id){ return getMeta().perks[id]||0; }
@@ -2465,6 +2466,7 @@ function checkRunAch(win){
   if((win || G.day>=9) && s.fuseDown<40) unlock("fuse");
   if(win){
     unlock("finish");
+    { const cm=getMeta(); if(!cm.life.campDone){ cm.life.campDone=1; saveMeta(cm); } }
     if(s.burnt===0) unlock("noburn");
     if(s.walkouts===0 && G.livesBought===0) unlock("flawless");   // gak ada pembeli kabur = tanpa cela
   }
@@ -2567,9 +2569,11 @@ function showStats(back){
     +st("⚓","Rombongan kapal",L.kapal||0)
     +st("🫙","Total Trinkgeld",rupiah(L.tipsAll||0))
     +st("💰","Total pemasukan",rupiah(L.earnAll||0))
-    +'</div><button class="bigbtn green" id="statBack">⬅️ Kembali</button>';
+    +'</div><button class="bigbtn" id="resetAll" style="background:#c0392b;margin-bottom:8px">🗑️ Reset Semua Data</button><button class="bigbtn green" id="statBack">⬅️ Kembali</button>';
   $("menu").style.display="flex";
   $("statBack").onclick=back;
+  var rb=$("resetAll"), armed=false;
+  rb.onclick=function(){ if(!armed){ armed=true; rb.textContent="⚠️ Yakin? Klik lagi buat HAPUS SEMUA"; sfx("burnt"); return; } try{ Object.keys(localStorage).forEach(function(k){ if(k.indexOf("bala2")===0) localStorage.removeItem(k); }); }catch(e){} location.reload(); };
 }
 /* Cara main (dipakai di intro & dari menu) */
 function showHelp(fromMenu){
@@ -2676,12 +2680,14 @@ function tutorialHTML(){
 }
 let chosenMode=0;   // 0=Kampanye, 1=Endless
 function modePickHTML(){
-  const modes=[{n:"Kampanye",d:"10 hari, ada tamat. Buat belajar & santai."},{n:"Endless",d:"Mulai Hari 11 + modal awal. Makin lama makin susah."}];
-  const pills=modes.map((mo,i)=>`<button class="tierPill${i===chosenMode?" sel":""}" data-t="${i}">${i===1?"🔥 ":""}${mo.n}</button>`).join("");
+  const done=campDone();
+  const modes=[{n:"Kampanye",d:"Survive festival selama sepuluh hari."},{n:"Endless",d:done?"Dari hari ke-11 sampai selamanya.":"Tamatin Kampanye dulu buat buka.",lock:!done}];
+  const pills=modes.map((mo,i)=>`<button class="tierPill${i===chosenMode?" sel":""}${mo.lock?" lock":""}" data-t="${i}" ${mo.lock?"disabled":""}>${mo.lock?"🔒 ":(i===1?"🔥 ":"")}${mo.n}</button>`).join("");
   return `<div class="tierRow">${pills}</div><div class="tierDesc" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin:7px 2px 2px;line-height:1.35">${modes[chosenMode].d}</div>`;
 }
 function showIntro(){
   const m=getMeta();
+  if(chosenMode===1 && !campDone()) chosenMode=0;
   $("card").innerHTML=`<h1><span class="bala"></span> Bala2 Rush</h1>
     ${tutorialHTML()}
     <div class="pickLbl">Pilih mode</div>
