@@ -180,6 +180,12 @@
   .lbl.ready{background:var(--good);color:#fff;}
   .lbl.burnt{background:var(--bad);color:#fff;}
   .slots.dropok{outline:3px dashed var(--good);outline-offset:3px;border-radius:10px;}
+  #pegawai{position:absolute;right:2px;top:-30px;width:33px;height:40px;display:none;z-index:6;pointer-events:none;transform-origin:bottom center;filter:drop-shadow(0 2px 2px #0003);}
+  #pegawai svg{width:100%;height:100%;display:block;}
+  #pegawai.press{animation:pegPress .34s ease;}
+  @keyframes pegPress{0%{transform:translateY(0) rotate(0)}42%{transform:translateY(5px) rotate(7deg)}100%{transform:translateY(0) rotate(0)}}
+  #collect.ptap{animation:btnTap .3s ease;}
+  @keyframes btnTap{45%{filter:brightness(1.4)}}
 
   .side{width:172px;gap:8px;}
   /* min-width:0 WAJIB: tanpa ini, teks "menghangatkan… X%" (nowrap) bikin kartu
@@ -928,7 +934,8 @@
           <span class="splash"></span>
         </div>
         <div class="slots" id="slots"></div>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;position:relative">
+          <div id="pegawai"><svg viewBox="0 0 40 48" preserveAspectRatio="xMidYMid meet"><g stroke="#3a2410" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><path d="M9 47 v-10 a11 11 0 0 1 22 0 v10 Z" fill="#fdfdfd"/><path d="M15 39 l5 -5 l5 5 Z" fill="#e8721c"/><circle cx="20" cy="26" r="10" fill="#f2c9a0"/><circle cx="16.5" cy="25" r="1.6" fill="#3a352f" stroke="none"/><circle cx="23.5" cy="25" r="1.6" fill="#3a352f" stroke="none"/><path d="M17 29 q3 2.2 6 0" fill="none" stroke-width="1.7"/><circle cx="13" cy="28" r="2.3" fill="#f0a878" stroke="none"/><circle cx="27" cy="28" r="2.3" fill="#f0a878" stroke="none"/><ellipse cx="20" cy="13" rx="12" ry="5" fill="#fdfdfd"/><circle cx="11" cy="12" r="5" fill="#fdfdfd"/><circle cx="20" cy="8" r="6" fill="#fdfdfd"/><circle cx="29" cy="12" r="5" fill="#fdfdfd"/><rect x="12" y="15" width="16" height="4" rx="2" fill="#f0efe9" stroke="none"/></g></svg></div>
           <button class="act" id="fryAll"><span class="bala sm"></span> Goreng Semua</button>
           <button class="act blue" id="collect"><svg class="ic"><use href="#ic-warmer"/></svg> Ambil Semua</button>
         </div>
@@ -1431,6 +1438,10 @@ function clickSlot(i){
     if(fryOne(i)){ sfx("fry"); updateRes(); renderSlots(); }
   }
 }
+function pegawaiPress(){
+  var p=document.getElementById("pegawai"); if(p){ p.classList.remove("press"); void p.offsetWidth; p.classList.add("press"); }
+  var c=document.getElementById("collect"); if(c){ c.classList.remove("ptap"); void c.offsetWidth; c.classList.add("ptap"); }
+}
 function collectAll(){
   let n=0;
   for(let i=0;i<G.slots.length;i++){ if(G.slots[i].state==="ready" && !G.slots[i].off){ if(toWarmer(i)) n++; } }
@@ -1802,6 +1813,7 @@ function updateHUD(){
   var _ab=document.getElementById("adoIc"); if(_ab)_ab.setAttribute("href",(G.up.baskom||0)>=3?"#ic-bowl2":"#ic-bowl");
   var _sb=document.getElementById("scIc"); if(_sb)_sb.setAttribute("href",(G.up.panci||0)>=3?"#ic-pot2":"#ic-pot");
   var _ob=document.getElementById("oilIc"); if(_ob)_ob.setAttribute("href",(G.up.tangki||0)>=2?"#ic-oil2":"#ic-oil");
+  var _pg=document.getElementById("pegawai"); if(_pg)_pg.style.display=G.up.pegawai?"block":"none";
   $("money").textContent=rupiah(G.money);
   $("hearts").textContent="❤️".repeat(Math.max(0,G.hearts))+"🖤".repeat(Math.max(0,MAXHEARTS()-G.hearts));
   $("warmCount").textContent=G.warm;
@@ -1927,7 +1939,7 @@ function loop(ts){
       if(s.t>=cook){s.state="ready";s.t=0;s.helper=0;dirty=true;sfx("ding");}
     } else if(s.state==="ready"){
       s.t+=dt;
-      if(G.up.pegawai){ s.helper+=dt; if(s.helper>=HELPERDELAY()){ toWarmer(i); dirty=true; return; } }
+      if(G.up.pegawai){ s.helper+=dt; if(s.helper>=HELPERDELAY()){ toWarmer(i); pegawaiPress(); dirty=true; return; } }
       if(s.t>=burn){s.state="burnt";dirty=true;sfx("burnt");G.stats.burnt++;
         if(bumpLife("burn")>=30) unlock("burn");}
     }
