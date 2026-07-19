@@ -93,7 +93,7 @@
 
   .field{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:8px;overflow:hidden;position:relative;}
   /* JANGAN di-scroll: antrean maks 8 -> selalu muat 2 baris x 4 kartu */
-  .customers{flex:1 1 auto;min-height:90px;background:#00000022;border-radius:14px;padding:8px;
+  .customers{flex:1 1 auto;min-height:70px;background:#00000022;border-radius:14px;padding:8px;
     display:flex;gap:8px;flex-wrap:nowrap;justify-content:flex-start;overflow:hidden;}
   .stations{flex:0 0 auto;}
   .thiefLane{flex:0 0 auto;}
@@ -102,7 +102,7 @@
   .cust.can{border-color:var(--good);}
   .cust .bubble{background:#fff;border:1.5px solid #0002;border-radius:10px;padding:3px 5px;font-size:9.5px;font-weight:700;line-height:1.15;text-align:center;margin-bottom:5px;position:relative;min-height:26px;display:flex;align-items:center;justify-content:center;}
   .cust .bubble:after{content:"";position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#fff;}
-  .cust .face{width:100%;max-width:34px;margin:0 auto;line-height:0;}
+  .cust .face{width:100%;max-width:30px;margin:0 auto;line-height:0;}
   .cust .face svg{width:100%;height:auto;display:block;}
   .cust .order{font-size:13px;font-weight:800;text-align:center;margin:3px 0;}
   .cust .tags{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;font-size:10px;min-height:0;}
@@ -203,7 +203,7 @@
   .statein{font-size:11px;color:var(--muted);font-weight:700;text-align:center;
     height:14px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .statein.hot{color:var(--good);} .statein.cold{color:var(--bad);}
-  button.act{border:none;border-radius:10px;padding:13px 8px;font-weight:800;font-size:15px;color:#fff;cursor:pointer;box-shadow:0 3px 0 #0004;background:var(--accent);width:100%;}
+  button.act{border:none;border-radius:10px;padding:16px 8px;font-weight:800;font-size:16px;color:#fff;cursor:pointer;box-shadow:0 3px 0 #0004;background:var(--accent);width:100%;}
   button.act:active{transform:translateY(2px);box-shadow:0 1px 0 #0004;}
   button.act.blue{background:#3a7bd5;}
   button.act:disabled{opacity:.5;}
@@ -670,18 +670,18 @@
     .slots{grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:5px;}
     .slot .em{font-size:22px;width:22px;height:22px;}
     .panel{padding:6px;gap:5px;}
-    button.act{padding:11px 5px;font-size:14px;}
+    button.act{padding:14px 5px;font-size:15px;}
     .rh{font-size:12px;} .rh .big{font-size:16px;}
     .statein{font-size:10px;}
     #jerigen{font-size:22px;padding:2px;}
   }
   /* layar pendek: rapetin, tapi dialog Jermannya tetep ada */
   @media(max-height:720px){
-    .customers{min-height:74px;}
+    .customers{min-height:60px;}
     .cust .bubble{font-size:8px;padding:1px 3px;margin-bottom:3px;
       max-height:24px;overflow:hidden;line-height:1.05;}
     .cust .bubble:after{display:none;}
-    .cust .face{font-size:20px;max-width:28px;}
+    .cust .face{font-size:20px;max-width:24px;}
     .thiefLane{height:48px;}
     .thief{font-size:28px;}
     .tipjar{font-size:20px;}
@@ -950,7 +950,7 @@
         <div class="res">
           <div class="rh"><span><svg class="ic big"><use href="#ic-bowl" id="adoIc"/></svg> Adonan</span><span id="adoCount">0</span></div>
           <div class="bar ado"><span id="adoBar"></span></div>
-          <button class="act" id="makeBatter"><svg class="ic"><use href="#ic-bowl"/></svg> Buat Adonan</button>
+          <button class="act" id="makeBatter"><svg class="ic"><use href="#ic-bowl" id="adoBtnIc"/></svg> Buat Adonan</button>
         </div>
         <div class="res">
           <div class="rh"><span><svg class="ic big"><use href="#ic-pot" id="scIc"/></svg> Saus</span><span id="scCount">0/0</span></div>
@@ -962,8 +962,8 @@
           <div class="rh"><span><svg class="ic big"><use href="#ic-oil" id="oilIc"/></svg> Minyak</span><span id="oilPct">100%</span></div>
           <div class="bar oil"><span id="oilBar"></span></div>
           <div class="statein" id="oilState">cukup</div>
-          <div id="jerigen"><svg class="jerIc"><use href="#ic-oil"/></svg></div>
-          <div class="statein">seret ke penggorengan buat isi</div>
+          <div id="jerigen"><svg class="jerIc"><use href="#ic-oil" id="jerBtnIc"/></svg></div>
+          <div class="statein">seret ke wajan buat isi</div>
         </div>
       </div>
     </div>
@@ -1810,9 +1810,9 @@ function updateRes(){
   } else oc.style.display="none";
 }
 function updateHUD(){
-  var _ab=document.getElementById("adoIc"); if(_ab)_ab.setAttribute("href",(G.up.baskom||0)>=3?"#ic-bowl2":"#ic-bowl");
+  var _bw=(G.up.baskom||0)>=3?"#ic-bowl2":"#ic-bowl"; ["adoIc","adoBtnIc"].forEach(function(id){var el=document.getElementById(id);if(el)el.setAttribute("href",_bw);});
   var _sb=document.getElementById("scIc"); if(_sb)_sb.setAttribute("href",(G.up.panci||0)>=3?"#ic-pot2":"#ic-pot");
-  var _ob=document.getElementById("oilIc"); if(_ob)_ob.setAttribute("href",(G.up.tangki||0)>=2?"#ic-oil2":"#ic-oil");
+  var _oi=(G.up.tangki||0)>=2?"#ic-oil2":"#ic-oil"; ["oilIc","jerBtnIc"].forEach(function(id){var el=document.getElementById(id);if(el)el.setAttribute("href",_oi);});
   var _pg=document.getElementById("pegawai"); if(_pg)_pg.style.display=G.up.pegawai?"block":"none";
   $("money").textContent=rupiah(G.money);
   $("hearts").textContent="❤️".repeat(Math.max(0,G.hearts))+"🖤".repeat(Math.max(0,MAXHEARTS()-G.hearts));
