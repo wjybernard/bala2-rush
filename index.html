@@ -2777,11 +2777,24 @@ function modePickHTML(){
   const pills=modes.map((mo,i)=>`<button class="tierPill${i===chosenMode?" sel":""}${mo.lock?" lock":""}" data-t="${i}" ${mo.lock?"disabled":""}>${mo.lock?"🔒 ":(i===1?"🔥 ":"")}${mo.n}</button>`).join("");
   return `<div class="tierRow">${pills}</div><div class="tierDesc" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin:7px 2px 2px;line-height:1.35">${modes[chosenMode].d}</div>`;
 }
+function showHelpIntro(){
+  $("menuCard").innerHTML=`<h1>Cara Main</h1>${tutorialHTML()}
+    <button class="bigbtn green" id="hiBack">⬅️ Kembali</button>`;
+  $("menu").style.display="flex";
+  $("hiBack").onclick=()=>{ $("menu").style.display="none"; };
+}
+function showWelcome(){
+  $("card").innerHTML=`<h1><span class="bala"></span> Selamat Datang!</h1>
+    <p class="ctx" style="text-align:center;margin-top:0">Pertama kali main? Ini cara mainnya — cepet kok.</p>
+    ${tutorialHTML()}
+    <button class="bigbtn green" id="welcomeGo">Ngerti, gas! 🔥</button>`;
+  $("overlay").style.display="flex";
+  $("welcomeGo").onclick=()=>{ try{localStorage.setItem("bala2_seen","1");}catch(e){}; sfx("ding"); showIntro(); };
+}
 function showIntro(){
   const m=getMeta();
   if(chosenMode===1 && !campDone()) chosenMode=0;
   $("card").innerHTML=`<h1><span class="bala"></span> Bala2 Rush</h1>
-    ${tutorialHTML()}
     <div class="pickLbl">Pilih mode</div>
     ${modePickHTML()}
     <button class="bigbtn green" id="start">Mulai Jualan! 🔥</button>
@@ -2793,7 +2806,10 @@ function showIntro(){
       <button class="bigbtn half" id="introHall" style="background:#7a5a3a">🏆 Hall of Fame</button>
       <button class="bigbtn half" id="introStats" style="background:#4f6f8a">📊 Statistik</button>
     </div>
-    <button class="bigbtn" id="introSet" style="background:#6a6470">⚙️ Setelan</button>
+    <div class="introBtns">
+      <button class="bigbtn half" id="introHelp" style="background:#3f7d8a">❓ Cara Main</button>
+      <button class="bigbtn half" id="introSet" style="background:#6a6470">⚙️ Setelan</button>
+    </div>
     ${(()=>{const l=getBoard(chosenMode===1?"e":"k"); if(!l.length) return ""; const b=l[0];
       return `<div class="recline">🏆 Rekor ${chosenMode===1?"Endless":"Kampanye"}: <b>${esc(b.name)}</b> · ${rupiah(b.score)}${b.endless?" 🔥H"+b.day:(b.win?" 🏁":"")}</div>`;})()}`;
   $("overlay").style.display="flex";
@@ -2806,6 +2822,7 @@ function showIntro(){
   $("introHall").onclick=()=>showHall(()=>{ $("menu").style.display="none"; });
   $("introStats").onclick=()=>showStats(()=>{ $("menu").style.display="none"; });
   $("introSet").onclick=()=>showSettings(()=>{ $("menu").style.display="none"; });
+  $("introHelp").onclick=()=>showHelpIntro();
 }
 
 /* ---------- events ---------- */
@@ -2861,7 +2878,7 @@ document.addEventListener("visibilitychange",()=>{
 (function(){function setVH(){var vv=window.visualViewport;var hh=(vv?vv.height:window.innerHeight);if(hh>0)document.documentElement.style.setProperty("--appvh",hh+"px");}setVH();addEventListener("resize",setVH);addEventListener("orientationchange",function(){setTimeout(setVH,150);});if(window.visualViewport)visualViewport.addEventListener("resize",setVH);setTimeout(setVH,300);setTimeout(setVH,800);})();
 loadSettings();
 applyAchMigrations();
-showIntro();
+if(localStorage.getItem("bala2_seen")){ showIntro(); } else { showWelcome(); }
 
 /* expose buat test */
 if(typeof module!=="undefined"&&module.exports){
