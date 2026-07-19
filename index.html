@@ -136,7 +136,7 @@
   @keyframes canTilt{from{transform:rotate(0)}to{transform:rotate(-42deg)}}
   @keyframes streamDown{from{transform:scaleY(0)}to{transform:scaleY(1)}}
   @keyframes splashPulse{from{transform:scale(.8);opacity:.55}to{transform:scale(1.15);opacity:1}}
-  .slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:6px;}
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;}
   /* keranjang Fritteuse: kotak berjaring, bukan wajan bulat */
   .slot{aspect-ratio:1;position:relative;cursor:pointer;user-select:none;container-type:inline-size;}
   .slot .fry{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;}
@@ -661,7 +661,7 @@
     .thief{font-size:32px;}
     .tipjar{font-size:24px;bottom:6px;}
     .tipjar .tjAmt{font-size:10px;}
-    .slots{grid-template-columns:repeat(auto-fit,minmax(56px,1fr));gap:5px;}
+    .slots{grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:5px;}
     .slot .em{font-size:22px;width:22px;height:22px;}
     .panel{padding:6px;gap:5px;}
     button.act{padding:11px 5px;font-size:14px;}
@@ -2241,7 +2241,6 @@ function scoreParts(win){
   if(cb>0) parts.push({label:"Combo x"+G.stats.bestCombo, v:cb});
   const hp=Math.max(0,G.hearts)*0.08;
   if(hp>0) parts.push({label:Math.max(0,G.hearts)+" nyawa sisa", v:hp});
-  if(G.cleanRun) parts.push({label:"Tanpa Perk ✊", v:0.4});
   if(G.endless){ const ez=Math.max(0,G.day-10); if(ez>0) parts.push({label:"Endless +"+ez+" hari", v:ez*0.1}); }
   else if(win) parts.push({label:"Tamat 🏁", v:FINISHBONUS});
   return parts;
@@ -2341,7 +2340,7 @@ function unlockTier(t){ const m=getMeta(); if(t>m.maxTier){ m.maxTier=Math.min(2
 function starsFromRun(win){
   const base=Math.floor(G.stats.porsi/35) + (win?3:0);
   const ez=G.endless?Math.max(0,G.day-10):0;              // makin jauh di endless = makin banyak ⭐
-  return Math.round((base + ez*0.5) * (G.cleanRun?1.5:1));
+  return Math.round(base + ez*0.5);
 }
 /* Toko Bintang — beli perk permanen. 'back' = tombol kembali. */
 function showPerkShop(back){
@@ -2363,7 +2362,7 @@ function showPerkShop(back){
   }).join("");
   $("menuCard").innerHTML=`<h1>⭐ Toko Bintang</h1>
     <div class="starBal">Punya <b>${m.stars} ⭐</b></div>
-    <div class="perkHint" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin-bottom:6px">Matiin semua perk = run bersih (bonus skor & ⭐).</div>
+    <div class="perkHint" style="font-size:11px;color:var(--muted);font-weight:700;text-align:center;margin-bottom:6px">Matiin perk buat coba main tanpa bantuan.</div>
     <div class="perkList">${rows}</div>
     <button class="bigbtn green" id="perkBack">⬅️ Kembali</button>`;
   $("menu").style.display="flex";
