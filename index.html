@@ -1787,8 +1787,8 @@ function updateRes(){
   } else oc.style.display="none";
 }
 function updateHUD(){
-  var _ab=document.getElementById("adoIc"); if(_ab)_ab.setAttribute("href",(G.up.baskom||0)>=2?"#ic-bowl2":"#ic-bowl");
-  var _sb=document.getElementById("scIc"); if(_sb)_sb.setAttribute("href",(G.up.panci||0)>=2?"#ic-pot2":"#ic-pot");
+  var _ab=document.getElementById("adoIc"); if(_ab)_ab.setAttribute("href",(G.up.baskom||0)>=3?"#ic-bowl2":"#ic-bowl");
+  var _sb=document.getElementById("scIc"); if(_sb)_sb.setAttribute("href",(G.up.panci||0)>=3?"#ic-pot2":"#ic-pot");
   $("money").textContent=rupiah(G.money);
   $("hearts").textContent="❤️".repeat(Math.max(0,G.hearts))+"🖤".repeat(Math.max(0,MAXHEARTS()-G.hearts));
   $("warmCount").textContent=G.warm;
