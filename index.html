@@ -2783,13 +2783,13 @@ function showHelpIntro(){
   $("menu").style.display="flex";
   $("hiBack").onclick=()=>{ $("menu").style.display="none"; };
 }
-function showWelcome(){
-  $("card").innerHTML=`<h1><span class="bala"></span> Selamat Datang!</h1>
-    <p class="ctx" style="text-align:center;margin-top:0">Pertama kali main? Ini cara mainnya — cepet kok.</p>
-    ${tutorialHTML()}
-    <button class="bigbtn green" id="welcomeGo">Ngerti, gas! 🔥</button>`;
-  $("overlay").style.display="flex";
-  $("welcomeGo").onclick=()=>{ try{localStorage.setItem("bala2_seen","1");}catch(e){}; sfx("ding"); showIntro(); };
+function showGameTutorial(){
+  // bekukan hari sambil baca tutorial (tanpa buka menu jeda)
+  if(G.running){ G.running=false; G.paused=true; stopMusic(); }
+  $("menuCard").innerHTML=`<h1>👋 Cara Main</h1>${tutorialHTML()}
+    <button class="bigbtn green" id="gtGo">Ngerti, gas! 🔥</button>`;
+  $("menu").style.display="flex";
+  $("gtGo").onclick=()=>{ try{localStorage.setItem("bala2_seen","1");}catch(e){}; sfx("ding"); $("menu").style.display="none"; if(G.paused) resumeGame(); };
 }
 function showIntro(){
   const m=getMeta();
@@ -2816,7 +2816,7 @@ function showIntro(){
   $("card").querySelectorAll(".tierPill[data-t]").forEach(b=>b.onclick=()=>{
     chosenMode=+b.dataset.t; sfx("click"); showIntro();
   });
-  $("start").onclick=()=>{ G.endless=(chosenMode===1); resetGame(); };
+  $("start").onclick=()=>{ G.endless=(chosenMode===1); resetGame(); if(!localStorage.getItem("bala2_seen")) showGameTutorial(); };
   $("introStar").onclick=()=>showPerkShop(()=>{ showIntro(); $("menu").style.display="none"; });
   $("introAch").onclick=()=>showAch(()=>{ $("menu").style.display="none"; });
   $("introHall").onclick=()=>showHall(()=>{ $("menu").style.display="none"; });
@@ -2878,7 +2878,7 @@ document.addEventListener("visibilitychange",()=>{
 (function(){function setVH(){var vv=window.visualViewport;var hh=(vv?vv.height:window.innerHeight);if(hh>0)document.documentElement.style.setProperty("--appvh",hh+"px");}setVH();addEventListener("resize",setVH);addEventListener("orientationchange",function(){setTimeout(setVH,150);});if(window.visualViewport)visualViewport.addEventListener("resize",setVH);setTimeout(setVH,300);setTimeout(setVH,800);})();
 loadSettings();
 applyAchMigrations();
-if(localStorage.getItem("bala2_seen")){ showIntro(); } else { showWelcome(); }
+showIntro();
 
 /* expose buat test */
 if(typeof module!=="undefined"&&module.exports){
