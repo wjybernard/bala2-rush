@@ -2786,7 +2786,7 @@ document.addEventListener("visibilitychange",()=>{
   }
 });
 
-(function(){function setVH(){var vv=window.visualViewport;document.documentElement.style.setProperty("--appvh",(vv?vv.height:window.innerHeight)+"px");}setVH();addEventListener("resize",setVH);addEventListener("orientationchange",function(){setTimeout(setVH,150);});if(window.visualViewport)visualViewport.addEventListener("resize",setVH);setTimeout(setVH,300);setTimeout(setVH,800);})();
+(function(){function setVH(){var vv=window.visualViewport;var hh=(vv?vv.height:window.innerHeight);if(hh>0)document.documentElement.style.setProperty("--appvh",hh+"px");}setVH();addEventListener("resize",setVH);addEventListener("orientationchange",function(){setTimeout(setVH,150);});if(window.visualViewport)visualViewport.addEventListener("resize",setVH);setTimeout(setVH,300);setTimeout(setVH,800);})();
 loadSettings();
 applyAchMigrations();
 showIntro();
