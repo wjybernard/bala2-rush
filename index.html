@@ -93,7 +93,7 @@
 
   .field{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:8px;overflow:hidden;position:relative;}
   /* JANGAN di-scroll: antrean maks 8 -> selalu muat 2 baris x 4 kartu */
-  .customers{flex:1 1 auto;min-height:70px;background:#00000022;border-radius:14px;padding:8px;
+  .customers{flex:1 1 auto;min-height:70px;background:#00000022;border-radius:14px;padding:8px;position:relative;z-index:1;
     display:flex;gap:8px;flex-wrap:nowrap;justify-content:flex-start;overflow:hidden;}
   .stations{flex:0 0 auto;}
   .thiefLane{flex:0 0 auto;}
@@ -186,7 +186,7 @@
   @keyframes pegPress{0%{transform:translateY(0) rotate(0)}42%{transform:translateY(5px) rotate(7deg)}100%{transform:translateY(0) rotate(0)}}
   #collect.ptap{animation:btnTap .3s ease;}
   @keyframes btnTap{45%{filter:brightness(1.4)}}
-  #standDeco{position:absolute;inset:0;pointer-events:none;z-index:4;overflow:hidden;}
+  #standDeco{display:none;}
   #standDeco .deco{position:absolute;display:none;filter:drop-shadow(0 2px 2px #0004);}
   #standDeco .deco svg{width:100%;height:auto;display:block;}
   #dAwning{top:44px;left:50%;transform:translateX(-50%);width:72px;}
