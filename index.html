@@ -186,6 +186,12 @@
   @keyframes pegPress{0%{transform:translateY(0) rotate(0)}42%{transform:translateY(5px) rotate(7deg)}100%{transform:translateY(0) rotate(0)}}
   #collect.ptap{animation:btnTap .3s ease;}
   @keyframes btnTap{45%{filter:brightness(1.4)}}
+  #standDeco{position:absolute;inset:0;pointer-events:none;z-index:4;overflow:hidden;}
+  #standDeco .deco{position:absolute;display:none;filter:drop-shadow(0 2px 2px #0004);}
+  #standDeco .deco svg{width:100%;height:auto;display:block;}
+  #dAwning{top:44px;left:50%;transform:translateX(-50%);width:72px;}
+  #dSpanduk{top:46px;left:6px;width:42px;}
+  #dSpeaker{top:44px;right:6px;width:27px;}
 
   .side{width:172px;gap:8px;}
   /* min-width:0 WAJIB: tanpa ini, teks "menghangatkan… X%" (nowrap) bikin kartu
@@ -914,6 +920,11 @@
 
   <div class="field">
     <div class="customers" id="customers"></div>
+    <div id="standDeco">
+      <div id="dAwning" class="deco"><svg viewBox="0 0 64 24" preserveAspectRatio="xMidYMid meet"><g stroke="#3a2410" stroke-width="2" stroke-linejoin="round"><rect x="2" y="2" width="60" height="5" rx="2" fill="#c0392b"/><path d="M4 7 H60 V16 Q54 22 48 16 Q42 22 36 16 Q30 22 24 16 Q18 22 12 16 Q6 22 4 16 Z" fill="#e8721c"/><rect x="14" y="7" width="8" height="11" fill="#fff6e6" stroke="none"/><rect x="30" y="7" width="8" height="11" fill="#fff6e6" stroke="none"/><rect x="46" y="7" width="8" height="11" fill="#fff6e6" stroke="none"/><path d="M4 7 H60 V16 Q54 22 48 16 Q42 22 36 16 Q30 22 24 16 Q18 22 12 16 Q6 22 4 16 Z" fill="none"/></g></svg></div>
+      <div id="dSpanduk" class="deco"><svg viewBox="0 0 48 34" preserveAspectRatio="xMidYMid meet"><g stroke="#3a2410" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="2" width="42" height="4" rx="2" fill="#8a5a2b"/><path d="M9 6 h30 v16 l-15 7 -15 -7 Z" fill="#e23c3c"/><rect x="9" y="6" width="30" height="6" fill="#fff" stroke="none"/><circle cx="24" cy="18" r="6" fill="#f6c445" stroke="#b8790d" stroke-width="1.4"/></g></svg></div>
+      <div id="dSpeaker" class="deco"><svg viewBox="0 0 32 42" preserveAspectRatio="xMidYMid meet"><g stroke="#3a2410" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="18" height="34" rx="3" fill="#5a4a3a"/><circle cx="13" cy="14" r="4.5" fill="#c9bda9"/><circle cx="13" cy="14" r="2" fill="#3a2f26" stroke="none"/><circle cx="13" cy="28" r="6" fill="#c9bda9"/><circle cx="13" cy="28" r="2.6" fill="#3a2f26" stroke="none"/><path d="M25 10 l4 -2 v11" fill="none" stroke="#e8721c" stroke-width="2"/><circle cx="25" cy="21" r="2.3" fill="#e8721c" stroke="none"/><circle cx="29" cy="19" r="2.3" fill="#e8721c" stroke="none"/></g></svg></div>
+    </div>
 
     <div class="thiefLane" id="thiefLane">
       <div class="thief" id="thiefEl" style="display:none">
@@ -959,7 +970,7 @@
           <button class="act blue" id="reheat">🔥 Panaskan</button>
         </div>
         <div class="res" id="oilCard" style="display:none">
-          <div class="rh"><span><svg class="ic big"><use href="#ic-oil" id="oilIc"/></svg> Minyak</span><span id="oilPct">100%</span></div>
+          <div class="rh"><span><svg class="ic big"><use href="#ic-oil" id="oilIc"/></svg> Minyak<span id="minyakSpark" style="display:none;color:#ffd23f;font-size:11px"> ✨</span></span><span id="oilPct">100%</span></div>
           <div class="bar oil"><span id="oilBar"></span></div>
           <div class="statein" id="oilState">cukup</div>
           <div id="jerigen"><svg class="jerIc"><use href="#ic-oil" id="jerBtnIc"/></svg></div>
@@ -1814,6 +1825,10 @@ function updateHUD(){
   var _sb=document.getElementById("scIc"); if(_sb)_sb.setAttribute("href",(G.up.panci||0)>=3?"#ic-pot2":"#ic-pot");
   var _oi=(G.up.tangki||0)>=2?"#ic-oil2":"#ic-oil"; ["oilIc","jerBtnIc"].forEach(function(id){var el=document.getElementById(id);if(el)el.setAttribute("href",_oi);});
   var _pg=document.getElementById("pegawai"); if(_pg)_pg.style.display=G.up.pegawai?"block":"none";
+  var _sp=document.getElementById("dSpanduk"); if(_sp)_sp.style.display=G.up.spanduk?"block":"none";
+  var _spk=document.getElementById("dSpeaker"); if(_spk)_spk.style.display=G.up.speaker?"block":"none";
+  var _aw=document.getElementById("dAwning"); if(_aw)_aw.style.display=G.up.etalase?"block":"none";
+  var _mk=document.getElementById("minyakSpark"); if(_mk)_mk.style.display=G.up.minyak?"inline":"none";
   $("money").textContent=rupiah(G.money);
   $("hearts").textContent="❤️".repeat(Math.max(0,G.hearts))+"🖤".repeat(Math.max(0,MAXHEARTS()-G.hearts));
   $("warmCount").textContent=G.warm;
