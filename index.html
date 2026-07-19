@@ -2571,10 +2571,30 @@ function showStats(back){
     +st("⚓","Rombongan kapal",L.kapal||0)
     +st("🫙","Total Trinkgeld",rupiah(L.tipsAll||0))
     +st("💰","Total pemasukan",rupiah(L.earnAll||0))
-    +'</div><button class="bigbtn" id="resetAll" style="background:#c0392b;margin-bottom:8px">🗑️ Reset Semua Data</button><button class="bigbtn green" id="statBack">⬅️ Kembali</button>';
+    +'</div><button class="bigbtn green" id="statBack">⬅️ Kembali</button>';
   $("menu").style.display="flex";
   $("statBack").onclick=back;
-  var rb=$("resetAll"), armed=false;
+}
+function showSettings(back){
+  $("menuCard").innerHTML='<h1>⚙️ Setelan</h1>'
+    +'<div class="setRow">'
+    +'<button class="setBtn '+(G.sfxOn?"on":"off")+'" id="stSfx">'+(G.sfxOn?"🔊":"🔇")+' Suara: <b>'+(G.sfxOn?"ON":"OFF")+'</b></button>'
+    +'<button class="setBtn '+(G.musicOn?"on":"off")+'" id="stMus">🎵 Musik: <b>'+(G.musicOn?"ON":"OFF")+'</b></button>'
+    +'</div>'
+    +'<div class="volRow"><span class="vlbl">🔊 Suara</span><input type="range" class="vol" id="svSfx" min="0" max="100" value="'+Math.round(G.sfxVol*100)+'"><span class="vpct" id="svSfxP">'+Math.round(G.sfxVol*100)+'%</span></div>'
+    +'<div class="volRow"><span class="vlbl">🎵 Musik</span><input type="range" class="vol" id="svMus" min="0" max="100" value="'+Math.round(G.musicVol*100)+'"><span class="vpct" id="svMusP">'+Math.round(G.musicVol*100)+'%</span></div>'
+    +'<button class="bigbtn" id="setReset" style="background:#c0392b;margin-top:14px">🗑️ Reset Semua Data</button>'
+    +'<button class="bigbtn green" id="setBack">⬅️ Kembali</button>';
+  $("menu").style.display="flex";
+  $("setBack").onclick=back;
+  $("stSfx").onclick=function(){ G.sfxOn=!G.sfxOn; saveSettings(); sfx("click"); showSettings(back); };
+  $("stMus").onclick=function(){ G.musicOn=!G.musicOn; saveSettings(); if(!G.musicOn)stopMusic(); showSettings(back); };
+  var vs=$("svSfx"), vm=$("svMus");
+  vs.oninput=function(){ G.sfxVol=vs.value/100; $("svSfxP").textContent=vs.value+"%"; applyVol(); };
+  vs.onchange=function(){ saveSettings(); sfx("ding"); };
+  vm.oninput=function(){ G.musicVol=vm.value/100; $("svMusP").textContent=vm.value+"%"; applyVol(); };
+  vm.onchange=function(){ saveSettings(); };
+  var rb=$("setReset"), armed=false;
   rb.onclick=function(){ if(!armed){ armed=true; rb.textContent="⚠️ Yakin? Klik lagi buat HAPUS SEMUA"; sfx("burnt"); return; } try{ Object.keys(localStorage).forEach(function(k){ if(k.indexOf("bala2")===0) localStorage.removeItem(k); }); }catch(e){} location.reload(); };
 }
 /* Cara main (dipakai di intro & dari menu) */
@@ -2703,6 +2723,7 @@ function showIntro(){
       <button class="bigbtn half" id="introHall" style="background:#7a5a3a">🏆 Hall of Fame</button>
       <button class="bigbtn half" id="introStats" style="background:#4f6f8a">📊 Statistik</button>
     </div>
+    <button class="bigbtn" id="introSet" style="background:#6a6470">⚙️ Setelan</button>
     ${(()=>{const l=getBoard(chosenMode===1?"e":"k"); if(!l.length) return ""; const b=l[0];
       return `<div class="recline">🏆 Rekor ${chosenMode===1?"Endless":"Kampanye"}: <b>${esc(b.name)}</b> · ${rupiah(b.score)}${b.endless?" 🔥H"+b.day:(b.win?" 🏁":"")}</div>`;})()}`;
   $("overlay").style.display="flex";
@@ -2714,6 +2735,7 @@ function showIntro(){
   $("introAch").onclick=()=>showAch(()=>{ $("menu").style.display="none"; });
   $("introHall").onclick=()=>showHall(()=>{ $("menu").style.display="none"; });
   $("introStats").onclick=()=>showStats(()=>{ $("menu").style.display="none"; });
+  $("introSet").onclick=()=>showSettings(()=>{ $("menu").style.display="none"; });
 }
 
 /* ---------- events ---------- */
