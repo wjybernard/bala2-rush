@@ -964,7 +964,7 @@ const G={
   up:{wajan:1,kompor:0,minyak:0,tangki:0,panci:0,baskom:0,etalase:0,pegawai:0,spanduk:0,speaker:0,genset:0},
 };
 const PRICE=1.50;  // € per porsi bala2
-const ENDLESS_START=300;  // modal mentah pas mulai Endless (Hari 11)
+const ENDLESS_START=250;  // modal mentah pas mulai Endless (Hari 11)
 const OILUSE=4.5, OILMIN=12;         // minyak: kepake per goreng; di bawah OILMIN gak bisa goreng
 const OILMAX=()=>100+G.up.tangki*70; // tangki lebih gede = jarang ngisi
 const POURTIME=1.0;                  // durasi animasi nuang minyak
@@ -993,15 +993,16 @@ const FEVERMULT=2;                    // penghasilan dikali segini selama fever
 const OILDAY0=3, THIEFDAY0=5;        // hari mekanik mulai (sama utk kedua mode)
 // Endless: kedalaman = berapa hari lewat Hari 10. Kampanye = selalu 0.
 const ED=()=>G.endless?Math.max(0,G.day-10):0;
+const EDx=()=>G.endless?Math.max(0,G.day-10)+2:0;   // intensitas escalation: hari 11 udah kerasa
 // Napas tiap 6 hari endless (Prinsip 3: squeeze & release) -> spawn agak longgar.
-const EBREATH=()=>(G.endless && G.day>10 && (G.day-10)%6===0)?1.2:1;   // napas: spawn lebih longgar
+const EBREATH=()=>1;   // hari santai di tengah dimatiin
 // Pengali kesulitan endless (naik pelan, ada cap biar tetap adil - Prinsip 8).
-const difRush  =()=>Math.max(0.28, 1 - ED()*0.060) * EBREATH();   // rush makin rapet
+const difRush  =()=>Math.max(0.28, 1 - EDx()*0.060) * EBREATH();   // rush makin rapet
 const difCalm  =()=>Math.max(0.70, 1 - ED()*0.012);               // luar rush lebih santai
-const difPat   =()=>Math.max(0.42, 1 - ED()*0.045);               // kesabaran turun
-const difTarget=()=>1 + ED()*0.155;
-const difOil   =()=>Math.min(2.3, 1 + ED()*0.08);
-const difThief =()=>Math.min(3.0, 1 + ED()*0.095);
+const difPat   =()=>Math.max(0.42, 1 - EDx()*0.045);               // kesabaran turun
+const difTarget=()=>1 + EDx()*0.155;
+const difOil   =()=>Math.min(2.3, 1 + EDx()*0.08);
+const difThief =()=>Math.min(3.0, 1 + EDx()*0.095);
 /* perk permanen -> efek */
 const metaModal =()=>getPerk("modal")*5;      // +€ modal awal per level
 const metaPrepA =()=>getPerk("prep")*6;       // +adonan tiap buka
@@ -1022,7 +1023,7 @@ const UPGRADES=[
   {k:"pegawai",ic:"🧑‍🍳",name:"Rekrut Pegawai",  desc:"Bantu pindahin bala2 matang ke penghangat (agak telat, gak instan). Investasi gede!", max:1, cost:l=>235},
   {k:"spanduk",ic:"🚩", name:"Spanduk Promosi",  desc:"Trinkgeld pembeli lebih besar", max:3, cost:l=>26+l*24},
   {k:"speaker",ic:"🔊", name:"Speaker Dangdut",  desc:"Pembeli lebih sabar", max:3, cost:l=>26+l*21},
-  {k:"genset",ic:"🔌", name:"Genset Cadangan",   desc:"1 wajan kebal mati lampu (maks 2 — gak bisa semua)", max:2, cost:l=>190+l*160},
+  {k:"genset",ic:"🔌", name:"Genset Cadangan",   desc:"1 wajan kebal mati lampu — gak bisa semua kebal", max:4, cost:l=>170+l*140},
 ];
 /* Endless money-sink: upgrade KAPASITAS boleh dibeli lebih jauh. Kompor/wajan/etalase tetap di-cap biar gak trivial. */
 const UPX={tangki:6, baskom:6, spanduk:6, speaker:6};
@@ -1970,7 +1971,7 @@ function setupEvents(day){
     news={who:"#ch-fire",title:"Menuju Puncak",msg:"\"Dua hari lagi. Semua tantangan aktif sekaligus. Gaskeun!\""}; }
   else if(day===10){ G.borongan=true;G.festival=true;G.blackoutRate=0.08;G.blackoutN=3;
     news={who:"#ch-flag",title:G.endless?"Puncak — Lanjut!":"Hari Terakhir!",msg:G.endless?"\"Lewat sini stand buka terus, tiap hari makin gila. Sampai mana kamu bertahan?\"":"\"Hari terakhir jualan. Habis-habisan ya!\""}; }
-  else if(day>10){ const ez=day-10; G.borongan=true;G.festival=true; G.blackoutN=3; G.blackoutRate=Math.min(0.12,0.06+ez*0.009);   // N3 dari Hari 11 (Genset jadi kuncinya)
+  else if(day>10){ const ez=day-10; G.borongan=true;G.festival=true; G.blackoutN=Math.min(5,3+Math.floor(ez/9)); G.blackoutRate=Math.min(0.12,0.06+ez*0.009);   // mati lampu 3 wajan, naik ke 5 makin dalam
     news=((day-10)%6===0)?{who:"#ch-supp",title:"Agak Lengang",msg:"\"Hari ini rada sepi — pas buat napas & upgrade.\""}:null; }
   return news;
 }
@@ -2458,6 +2459,8 @@ function checkRunAch(win){
   // KUMULATIF: tambahin hasil main ini ke total seumur karier, baru dicek
   if(bumpLifeBy("tipsAll", s.tipTotal) >= 1000)  unlock("tips");
   if(bumpLifeBy("earnAll", s.earned)   >= 12000) unlock("rich");
+  bumpLife("games"); bumpLifeBy("porsiAll", s.porsi); bumpLifeBy("servedAll", s.served);
+  { const mm=getMeta(); if(G.day>(mm.life.maxDay||0)){ mm.life.maxDay=G.day; saveMeta(mm); } }
   // Elektriker: main sampai melewati era mati lampu (hari 9+) dgn total padam < 40 dtk
   if((win || G.day>=9) && s.fuseDown<40) unlock("fuse");
   if(win){
@@ -2536,6 +2539,37 @@ function showAch(back){
     <button class="bigbtn green" id="aBack">⬅️ Kembali</button>`;
   $("menu").style.display="flex";
   $("aBack").onclick=back;
+}
+function showHall(back){
+  var med=["🥇","🥈","🥉","4.","5."];
+  function bd(mode,label,icon){
+    var l=getBoard(mode), rows;
+    if(l.length){ rows=l.map(function(e,i){
+      return '<div class="bRow"><span class="bPos">'+(med[i]||(i+1)+".")+'</span><span class="bName">'+esc(e.name)+'</span><span class="bMeta">'+(e.endless?"🔥H"+e.day:(e.win?"🏁":"H"+e.day))+'</span><b class="bScore">'+rupiah(e.score)+'</b></div>';
+    }).join(""); } else { rows='<div class="bEmpty">Belum ada. Jadi yang pertama.</div>'; }
+    return '<div class="bTitle">'+icon+' '+label+'</div><div class="board">'+rows+'</div>';
+  }
+  $("menuCard").innerHTML='<h1>🏆 Hall of Fame</h1>'+bd("k","Kampanye","🏁")+bd("e","Endless","🔥")+'<button class="bigbtn green" id="hofBack">⬅️ Kembali</button>';
+  $("menu").style.display="flex";
+  $("hofBack").onclick=back;
+}
+function showStats(back){
+  var L=getMeta().life;
+  function st(ic,lbl,val){ return '<div class="st"><span>'+ic+' '+lbl+'</span><b>'+val+'</b></div>'; }
+  $("menuCard").innerHTML='<h1>📊 Statistik</h1><div class="stats">'
+    +st("🎮","Main dimainkan",L.games||0)
+    +st("🥔","Total bala2 goreng",L.porsiAll||0)
+    +st("🧑","Pembeli dilayani",L.servedAll||0)
+    +st("📅","Hari terjauh",L.maxDay||0)
+    +st("🥷","Maling ditangkap",L.thief||0)
+    +st("🥣","Adonan dibuat",L.batter||0)
+    +st("😵‍💫","Bala2 gosong",L.burn||0)
+    +st("⚓","Rombongan kapal",L.kapal||0)
+    +st("🫙","Total Trinkgeld",rupiah(L.tipsAll||0))
+    +st("💰","Total pemasukan",rupiah(L.earnAll||0))
+    +'</div><button class="bigbtn green" id="statBack">⬅️ Kembali</button>';
+  $("menu").style.display="flex";
+  $("statBack").onclick=back;
 }
 /* Cara main (dipakai di intro & dari menu) */
 function showHelp(fromMenu){
@@ -2657,6 +2691,10 @@ function showIntro(){
       <button class="bigbtn half" id="introStar" style="background:#c9902a">⭐ Toko Bintang${m.stars>0?` (${m.stars})`:""}</button>
       <button class="bigbtn half" id="introAch" style="background:#5a8f3f">🏅 Achievements</button>
     </div>
+    <div class="introBtns">
+      <button class="bigbtn half" id="introHall" style="background:#7a5a3a">🏆 Hall of Fame</button>
+      <button class="bigbtn half" id="introStats" style="background:#4f6f8a">📊 Statistik</button>
+    </div>
     ${(()=>{const l=getBoard(chosenMode===1?"e":"k"); if(!l.length) return ""; const b=l[0];
       return `<div class="recline">🏆 Rekor ${chosenMode===1?"Endless":"Kampanye"}: <b>${esc(b.name)}</b> · ${rupiah(b.score)}${b.endless?" 🔥H"+b.day:(b.win?" 🏁":"")}</div>`;})()}`;
   $("overlay").style.display="flex";
@@ -2666,6 +2704,8 @@ function showIntro(){
   $("start").onclick=()=>{ G.endless=(chosenMode===1); resetGame(); };
   $("introStar").onclick=()=>showPerkShop(()=>{ showIntro(); $("menu").style.display="none"; });
   $("introAch").onclick=()=>showAch(()=>{ $("menu").style.display="none"; });
+  $("introHall").onclick=()=>showHall(()=>{ $("menu").style.display="none"; });
+  $("introStats").onclick=()=>showStats(()=>{ $("menu").style.display="none"; });
 }
 
 /* ---------- events ---------- */
