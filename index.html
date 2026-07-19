@@ -2192,7 +2192,7 @@ function endGame(win){
     </div>
 
     <div class="stats">
-      <div class="st"><span>🥔 Porsi terjual</span><b>${s.porsi}${rekorPorsi?' <span class="rec">REKOR!</span>':''}</b></div>
+      <div class="st"><span><span class="bala sm"></span> Porsi terjual</span><b>${s.porsi}${rekorPorsi?' <span class="rec">REKOR!</span>':''}</b></div>
       <div class="st"><span>🫙 Trinkgeld terkumpul</span><b>${rupiah(s.tipTotal)}</b></div>
       <div class="st"><span>🧑 Pembeli dilayani</span><b>${s.served}</b></div>
       <div class="st"><span>🔥 Combo terpanjang</span><b>x${s.bestCombo}</b></div>
@@ -2567,7 +2567,7 @@ function showMenu(){
     <div class="stats">
       <div class="st"><span>📅 Hari</span><b>${G.day} / 10</b></div>
       <div class="st"><span>💰 Kas</span><b>${rupiah(G.money)}</b></div>
-      ${b.porsi>0?`<div class="st"><span>🥔 Rekor porsi</span><b>${b.porsi}</b></div>`:""}
+      ${b.porsi>0?`<div class="st"><span><span class="bala sm"></span> Rekor porsi</span><b>${b.porsi}</b></div>`:""}
     </div>
     <div class="bTitle">🏆 Papan Skor</div>
     ${papanHTML(null)}
@@ -2632,7 +2632,7 @@ function showStats(back){
   function st(ic,lbl,val){ return '<div class="st"><span>'+ic+' '+lbl+'</span><b>'+val+'</b></div>'; }
   $("menuCard").innerHTML='<h1>📊 Statistik</h1><div class="stats">'
     +st("🎮","Main dimainkan",L.games||0)
-    +st("🥔","Total bala2 goreng",L.porsiAll||0)
+    +st('<span class="bala sm"></span>',"Total bala2 goreng",L.porsiAll||0)
     +st("🧑","Pembeli dilayani",L.servedAll||0)
     +st("📅","Hari terjauh",L.maxDay||0)
     +st("🥷","Maling ditangkap",L.thief||0)
