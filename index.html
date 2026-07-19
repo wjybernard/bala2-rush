@@ -93,7 +93,7 @@
 
   .field{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:8px;overflow:hidden;position:relative;}
   /* JANGAN di-scroll: antrean maks 8 -> selalu muat 2 baris x 4 kartu */
-  .customers{flex:1 1 auto;min-height:150px;background:#00000022;border-radius:14px;padding:8px;
+  .customers{flex:1 1 auto;min-height:90px;background:#00000022;border-radius:14px;padding:8px;
     display:flex;gap:8px;flex-wrap:nowrap;justify-content:flex-start;overflow:hidden;}
   .stations{flex:0 0 auto;}
   .thiefLane{flex:0 0 auto;}
@@ -102,10 +102,10 @@
   .cust.can{border-color:var(--good);}
   .cust .bubble{background:#fff;border:1.5px solid #0002;border-radius:10px;padding:3px 5px;font-size:9.5px;font-weight:700;line-height:1.15;text-align:center;margin-bottom:5px;position:relative;min-height:26px;display:flex;align-items:center;justify-content:center;}
   .cust .bubble:after{content:"";position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#fff;}
-  .cust .face{width:100%;max-width:44px;margin:0 auto;line-height:0;}
+  .cust .face{width:100%;max-width:34px;margin:0 auto;line-height:0;}
   .cust .face svg{width:100%;height:auto;display:block;}
   .cust .order{font-size:13px;font-weight:800;text-align:center;margin:3px 0;}
-  .cust .tags{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;font-size:10px;min-height:16px;}
+  .cust .tags{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;font-size:10px;min-height:0;}
   .tag{background:var(--panel2);border-radius:6px;padding:1px 5px;font-weight:700;}
   .tag.kacang{background:#f0e0c0;color:#8a5a1c;}
   .tag.buru{background:#fff0c2;color:#b8860b;}
@@ -681,11 +681,11 @@
   }
   /* layar pendek: rapetin, tapi dialog Jermannya tetep ada */
   @media(max-height:720px){
-    .customers{min-height:128px;}
+    .customers{min-height:74px;}
     .cust .bubble{font-size:8px;padding:1px 3px;margin-bottom:3px;
       max-height:24px;overflow:hidden;line-height:1.05;}
     .cust .bubble:after{display:none;}
-    .cust .face{font-size:20px;}
+    .cust .face{font-size:20px;max-width:28px;}
     .thiefLane{height:48px;}
     .thief{font-size:28px;}
     .tipjar{font-size:20px;}
