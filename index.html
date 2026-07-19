@@ -136,17 +136,11 @@
   @keyframes canTilt{from{transform:rotate(0)}to{transform:rotate(-42deg)}}
   @keyframes streamDown{from{transform:scaleY(0)}to{transform:scaleY(1)}}
   @keyframes splashPulse{from{transform:scale(.8);opacity:.55}to{transform:scale(1.15);opacity:1}}
-  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;}
+  .slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:6px;}
   /* keranjang Fritteuse: kotak berjaring, bukan wajan bulat */
-  .slot{aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;
-    position:relative;cursor:pointer;user-select:none;overflow:hidden;
-    background:
-      repeating-linear-gradient(90deg,#00000030 0 1px,transparent 1px 6px),
-      repeating-linear-gradient(0deg,#00000030 0 1px,transparent 1px 6px),
-      linear-gradient(#3f2a18,#2b1c0e);
-    box-shadow:inset 0 3px 7px #000a, inset 0 0 0 2px #8f9aa3;}
-  .slot:before{content:"";position:absolute;left:0;right:0;top:0;height:26%;
-    background:linear-gradient(#c98d1c66,#c98d1c00);pointer-events:none;}
+  .slot{aspect-ratio:1;position:relative;cursor:pointer;user-select:none;container-type:inline-size;}
+  .slot .fry{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;}
+  .slot .oil{position:absolute;left:50%;top:41%;transform:translate(-50%,-50%);width:52%;height:50%;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1;}
   /* ===== ikon & karakter SVG (flat vector) ===== */
   .ic{width:16px;height:16px;vertical-align:-3px;flex:none;}
   .ic.big{width:22px;height:22px;vertical-align:-5px;}
@@ -169,18 +163,14 @@
       radial-gradient(circle at 57% 78%,#3f8c33 0 9%,transparent 10%),
       radial-gradient(circle at 44% 45%,#e8963a 0 7%,transparent 8%);}
   .bala.sm{width:15px;height:15px;}
-  .slot .em{font-size:26px;width:26px;height:26px;opacity:.22;}
+  .slot .em{font-size:32cqw;opacity:.28;}
   .slot.cooking .em{opacity:1;}
   .slot.cooking .em{filter:saturate(.75) brightness(1.08);}   /* masih pucat */
-  .slot.ready{cursor:pointer;box-shadow:inset 0 3px 7px #000a, inset 0 0 0 2px var(--good), 0 0 0 2px var(--good);}
+  .slot.ready .fry{filter:drop-shadow(0 0 4px #3fae5a);}
   .slot.ready .em{opacity:1;filter:saturate(1.15);animation:bounce .5s infinite alternate;}
   .slot.burnt .em{opacity:1;filter:brightness(.45) saturate(.5) sepia(.5);}
   .slot.immune::after{content:"🔌";position:absolute;top:1px;right:2px;font-size:10px;line-height:1;z-index:3;filter:drop-shadow(0 1px 0 #0006);}
-  .slot.off{background:
-      repeating-linear-gradient(90deg,#00000030 0 1px,transparent 1px 6px),
-      repeating-linear-gradient(0deg,#00000030 0 1px,transparent 1px 6px),
-      linear-gradient(#1a1208,#100b05);}
-  .slot.off:before{display:none;}
+  .slot.off .fry{filter:grayscale(1) brightness(.4);}
   .slot.off .em{filter:brightness(.25);}
   .slot.off:after{content:"⚡";position:absolute;font-size:20px;animation:flick .5s infinite alternate;}
   @keyframes flick{from{opacity:.35}to{opacity:1}}
@@ -1345,6 +1335,17 @@ function buildSlots(){
   G.powerOut=false;
   renderSlots();
 }
+function fritteuseSVG(t){
+  var body=t>=3?"#e3e8ec":t>=2?"#d2d7dc":"#c7cbcf";
+  var s='<svg class="fry" viewBox="0 0 100 100" preserveAspectRatio="none">';
+  s+='<rect x="4" y="4" width="92" height="92" rx="12" fill="'+body+'" stroke="#2b2622" stroke-width="3.5"/>';
+  s+='<rect x="12" y="10" width="76" height="7" rx="3" fill="#eef2f5"/>';
+  s+='<rect x="24" y="16" width="52" height="50" rx="9" fill="#4a3418" stroke="#2b2622" stroke-width="3"/>';
+  if(t>=3){ s+='<rect x="10" y="70" width="80" height="6" rx="3" fill="#5b9dff"/><rect x="14" y="80" width="26" height="12" rx="3" fill="#12301e"/><rect x="18" y="83" width="3" height="6" fill="#4dff9b"/><rect x="24" y="83" width="3" height="6" fill="#4dff9b"/><rect x="30" y="83" width="3" height="6" fill="#4dff9b"/><circle cx="78" cy="85" r="7" fill="#3a352f" stroke="#2b2622" stroke-width="2.4"/><line x1="78" y1="85" x2="78" y2="79" stroke="#ffb100" stroke-width="2.4"/><circle cx="52" cy="85" r="3.5" fill="#e23c3c"/>'; }
+  else if(t>=2){ s+='<rect x="10" y="72" width="80" height="4" rx="2" fill="#ffb100"/><circle cx="30" cy="86" r="6.5" fill="#3a352f" stroke="#2b2622" stroke-width="2.2"/><line x1="30" y1="86" x2="30" y2="80" stroke="#ffb100" stroke-width="2.2"/><circle cx="58" cy="86" r="4" fill="#e23c3c"/><rect x="70" y="80" width="14" height="12" rx="3" fill="#cfd4d9" stroke="#2b2622" stroke-width="2"/>'; }
+  else { s+='<circle cx="34" cy="84" r="6" fill="#3a352f" stroke="#2b2622" stroke-width="2.2"/><line x1="34" y1="84" x2="34" y2="79" stroke="#ffb100" stroke-width="2.2"/>'; }
+  return s+'</svg>';
+}
 function renderSlots(){
   const el=$("slots");if(!el)return;
   el.innerHTML="";
@@ -1352,6 +1353,7 @@ function renderSlots(){
   G.slots.forEach((s,i)=>{
     const d=document.createElement("div");
     const im=Math.min(G.up.genset||0, G.slots.length-1);
+    const kt=(G.up.kompor||0)>=4?3:(G.up.kompor||0)>=2?2:1;
     d.className="slot "+s.state+(s.off?" off":"")+(i>=G.slots.length-im?" immune":"");
     d.dataset.i=i;
     let ring="";
@@ -1362,7 +1364,7 @@ function renderSlots(){
     let lbl="";
     if(s.state==="ready")lbl='<span class="lbl ready">MATANG</span>';
     if(s.state==="burnt")lbl='<span class="lbl burnt">GOSONG</span>';
-    d.innerHTML=`${ring}<span class="em bala"></span>${lbl}`;
+    d.innerHTML=fritteuseSVG(kt)+`<div class="oil">${ring}<span class="em bala"></span></div>`+lbl;
     el.appendChild(d);
   });
   const busy=G.slots.filter(s=>s.state!=="empty").length;
