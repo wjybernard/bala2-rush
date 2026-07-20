@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Bala2 Rush — © 2026 Bernard Wijaya. All rights reserved. Hak cipta ada pada pembuatnya; dilarang menyalin, memodifikasi, atau menyebarkan ulang tanpa izin. -->
 <html lang="id">
 <head>
 <meta charset="UTF-8">
@@ -524,6 +525,7 @@
   .st:last-child{border-bottom:none;}
   .st b{font-size:15px;}
   .rec{background:var(--accent2);color:#5a3b00;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;text-shadow:none;}
+  .copyfoot{text-align:center;font-size:10px;color:var(--muted);margin-top:10px;opacity:.7;letter-spacing:.3px;}
   .diag{background:#fff3e0;border:2px solid var(--accent);border-radius:12px;padding:10px 12px;margin:10px 0;text-align:left;}
   .dh{font-weight:800;font-size:14px;margin-bottom:5px;color:#a8500c;}
   .drow{font-size:13px;line-height:1.5;}
@@ -2905,7 +2907,8 @@ function showIntro(){
       <button class="bigbtn half" id="introSet" style="background:#6a6470">⚙️ Setelan</button>
     </div>
     ${(()=>{const l=getBoard(chosenMode===1?"e":"k"); if(!l.length) return ""; const b=l[0];
-      return `<div class="recline">🏆 Rekor ${chosenMode===1?"Endless":"Kampanye"}: <b>${esc(b.name)}</b> · ${rupiah(b.score)}${b.endless?" 🔥H"+b.day:(b.win?" 🏁":"")}</div>`;})()}`;
+      return `<div class="recline">🏆 Rekor ${chosenMode===1?"Endless":"Kampanye"}: <b>${esc(b.name)}</b> · ${rupiah(b.score)}${b.endless?" 🔥H"+b.day:(b.win?" 🏁":"")}</div>`;})()}
+    <div class="copyfoot">© 2026 Bernard Wijaya · Bala2 Rush</div>`;
   $("overlay").style.display="flex";
   $("card").querySelectorAll(".tierPill[data-t]").forEach(b=>b.onclick=()=>{
     chosenMode=+b.dataset.t; sfx("click"); showIntro();
