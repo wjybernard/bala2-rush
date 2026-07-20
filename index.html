@@ -2798,7 +2798,7 @@ function showHelpIntro(){
 }
 var TUT={on:false,step:0,steps:[
   {msg:"Klik salah satu <b>penggorengan</b> (atau tombol <b>Goreng Semua</b>) buat mulai menggoreng bala2.",els:["slots","fryAll"],hit:"fry"},
-  {msg:"Tunggu sampai mateng, terus klik bala2-nya (atau <b>Ambil Semua</b>) buat pindahin ke <b>Penghangat</b>.",els:["slots","collect"],hit:"take"},
+  {msg:"Bala2-nya udah mateng! Klik bala2-nya (atau <b>Ambil Semua</b>) buat pindahin ke <b>Penghangat</b>.",els:["slots","collect"],hit:"take"},
   {msg:"Klik <b>Buat Adonan</b> buat nambah stok adonan.",els:["makeBatter"],hit:"batter"},
   {msg:"Pelanggan pertama dateng — dia mau pakai <b>saus kacang</b>. Klik kartunya buat melayani.",els:["customers"],hit:"serve"},
   {msg:"Sausnya kepakai tuh. Klik <b>Panaskan</b> buat manasin kacangnya lagi.",els:["reheat"],hit:"reheat"}
@@ -2807,11 +2807,12 @@ function tutClearHi(){var l=document.querySelectorAll(".tutHi");for(var i=0;i<l.
 function tutRender(){
   tutClearHi();
   var s=TUT.steps[TUT.step],tip=document.getElementById("tutTip");if(!tip)return;
-  tip.innerHTML='<span class="sc">👋 TUTORIAL '+(TUT.step+1)+'/'+TUT.steps.length+'</span>'+s.msg;
+  tip.innerHTML='<span class="sc">⏸️ TUTORIAL '+(TUT.step+1)+'/'+TUT.steps.length+' · game dijeda</span>'+s.msg;
   for(var i=0;i<s.els.length;i++){var el=document.getElementById(s.els[i]);if(el)el.classList.add("tutHi");}
 }
 function tutStart(){
   if(TUT.on)return; TUT.on=true; TUT.step=0;
+  G.running=false; G.paused=true; if(typeof stopMusic==="function")stopMusic();   // beku: gak ada rush, timer, atau pelanggan pergi
   var g=document.getElementById("game")||document.body;
   if(!document.getElementById("tutTip")){var t=document.createElement("div");t.id="tutTip";g.appendChild(t);}
   tutRender();
@@ -2819,14 +2820,27 @@ function tutStart(){
 function tutHit(kind){
   if(typeof TUT==="undefined"||!TUT.on)return;
   if(TUT.steps[TUT.step].hit!==kind)return;
-  TUT.step++;
+  var did=kind; TUT.step++;
+  if(did==="fry") setTimeout(tutRipen,0);   // bala2 langsung mateng (game beku, gak bakal mateng sendiri)
+  if(TUT.on && TUT.step<TUT.steps.length && TUT.steps[TUT.step].hit==="serve") setTimeout(tutEnsureCustomer,0);
   if(TUT.step>=TUT.steps.length){tutEnd();}
   else{sfx("ding");tutRender();}
+}
+function tutRipen(){
+  var any=false;
+  for(var i=0;i<G.slots.length;i++){var s=G.slots[i];if(s&&!s.off&&s.state==="cooking"){s.state="ready";s.t=0;s.helper=0;any=true;}}
+  if(any&&typeof renderSlots==="function")renderSlots();
+}
+function tutEnsureCustomer(){
+  if(G.customers.length===0 && typeof makeCustomer==="function") makeCustomer();   // TUT.on -> kacang, qty 1
+  for(var i=0;i<G.customers.length;i++){var c=G.customers[i];c.kacang=true;c.qty=1;if(typeof custSay==="function")c.say=custSay(c);}
+  if(typeof renderCustomers==="function")renderCustomers();
 }
 function tutEnd(){
   TUT.on=false; tutClearHi();
   var t=document.getElementById("tutTip");if(t)t.remove();
   try{localStorage.setItem("bala2_seen","1");}catch(e){}
+  if(G.paused && typeof resumeGame==="function") resumeGame();   // lanjut main normal
   var g=document.getElementById("game")||document.body;
   var d=document.createElement("div");d.id="tutDone";d.innerHTML="✅ Mantap! Lanjut jualan sendiri ya 🔥";g.appendChild(d);
   setTimeout(function(){var x=document.getElementById("tutDone");if(x)x.remove();},2200);
