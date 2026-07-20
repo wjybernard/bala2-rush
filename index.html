@@ -610,6 +610,9 @@
   /* ---------- papan skor + input nama ---------- */
   .bTitle{text-align:center;font-weight:900;font-size:14px;margin:12px 0 6px;color:#6b4a22;}
   .board{background:#fff8ea;border-radius:12px;padding:4px 6px;border:2px solid #0001;}
+  .hofTabs{display:flex;gap:8px;margin:8px 0 4px;}
+  .hofTab{flex:1;border:none;border-radius:10px;padding:9px 6px;font-weight:800;font-size:14px;cursor:pointer;background:#00000022;color:#7a5a2e;}
+  .hofTab.on{background:var(--accent);color:#fff;}
   .bEmpty{text-align:center;font-size:13px;color:var(--muted);padding:10px 4px;font-weight:700;}
   .bRow{display:flex;align-items:center;gap:8px;padding:7px 6px;font-size:14px;
     border-bottom:1px solid #0000000f;}
@@ -2250,6 +2253,7 @@ function endGame(win){
       setName(nama);
       const ts=Date.now();
       tambahSkor(nama,skor,s.porsi,G.day,win);
+      fbSubmit(nama,skor,boardKey(),G.endless?G.day:0,win);
       const l=getBoard();
       const punya=l.find(e=>e.name===nama && e.score===skor);
       slot.innerHTML=`<div class="bTitle">🏆 Papan Skor</div>${papanHTML(punya?punya.ts:null)}`;
@@ -2351,6 +2355,41 @@ function runScore(win){
    Dulu cuma nyimpen 1 angka rekor. Sekarang 5 besar + nama pemain.
    v1 = skor berbasis pemasukan. */
 const BOARDVER=3, BOARDMAX=5;   // v3 = papan dipisah Kampanye (k) & Endless (e), satuan €
+const FB_KEY="AIzaSyBGb5fGAyC-pRcRU6MUHb__b_vKha71HRE";
+const FB_URL="https://firestore.googleapis.com/v1/projects/bala2-rush/databases/(default)/documents/scores";
+function fbSubmit(name,score,mode,day,win){
+  if(!(score>0))return;
+  try{
+    var body={fields:{
+      name:{stringValue:String(name||"?").slice(0,24)},
+      score:{doubleValue:Math.round(score*100)/100},
+      mode:{stringValue:mode==="e"?"e":"k"},
+      day:{integerValue:String(day||0)},
+      win:{booleanValue:!!win},
+      ts:{integerValue:String(Date.now())}
+    }};
+    fetch(FB_URL+"?key="+FB_KEY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).catch(function(){});
+  }catch(e){}
+}
+function fbFetchTop(cb){
+  fetch(FB_URL+"?key="+FB_KEY+"&pageSize=300").then(function(r){return r.json();}).then(function(d){
+    var docs=(d.documents||[]).map(function(x){var f=x.fields||{};return {
+      name:(f.name&&f.name.stringValue)||"?",
+      score:parseFloat((f.score&&((f.score.doubleValue!=null)?f.score.doubleValue:f.score.integerValue))||0),
+      mode:((f.mode&&f.mode.stringValue)==="e")?"e":"k",
+      day:parseInt((f.day&&f.day.integerValue)||0,10),
+      win:!!(f.win&&f.win.booleanValue)
+    };});
+    cb(null,docs);
+  }).catch(function(e){cb(e,null);});
+}
+function fbMigrate(){
+  try{ if(localStorage.getItem("bala2_gmig"))return; }catch(e){}
+  try{ var a=getAllBoards();
+    ["k","e"].forEach(function(m){ (a[m]||[]).forEach(function(e){ fbSubmit(e.name,e.score,m,e.endless?e.day:0,e.win); }); });
+    localStorage.setItem("bala2_gmig","1");
+  }catch(e){}
+}
 function boardKey(){ return G.endless?"e":"k"; }
 function getAllBoards(){
   try{ const o=JSON.parse(localStorage.getItem("bala2_board"));
@@ -2643,17 +2682,38 @@ function showAch(back){
   $("aBack").onclick=back;
 }
 function showHall(back){
-  var med=["🥇","🥈","🥉","4.","5."];
-  function bd(mode,label,icon){
-    var l=getBoard(mode), rows;
-    if(l.length){ rows=l.map(function(e,i){
-      return '<div class="bRow"><span class="bPos">'+(med[i]||(i+1)+".")+'</span><span class="bName">'+esc(e.name)+'</span><span class="bMeta">'+(e.endless?"🔥H"+e.day:(e.win?"🏁":"H"+e.day))+'</span><b class="bScore">'+rupiah(e.score)+'</b></div>';
-    }).join(""); } else { rows='<div class="bEmpty">Belum ada. Jadi yang pertama.</div>'; }
+  var med=["🥇","🥈","🥉","4.","5.","6.","7.","8.","9.","10."];
+  function row(e,i,mode){
+    return '<div class="bRow"><span class="bPos">'+(med[i]||(i+1)+".")+'</span><span class="bName">'+esc(e.name)+'</span><span class="bMeta">'+(mode==="e"?"🔥H"+e.day:(e.win?"🏁":"H"+e.day))+'</span><b class="bScore">'+rupiah(e.score)+'</b></div>';
+  }
+  function bd(list,label,icon,mode){
+    var rows=list.length?list.map(function(e,i){return row(e,i,mode);}).join(""):'<div class="bEmpty">Belum ada. Jadi yang pertama.</div>';
     return '<div class="bTitle">'+icon+' '+label+'</div><div class="board">'+rows+'</div>';
   }
-  $("menuCard").innerHTML='<h1>🏆 Hall of Fame</h1>'+bd("k","Kampanye","🏁")+bd("e","Endless","🔥")+'<button class="bigbtn green" id="hofBack">⬅️ Kembali</button>';
-  $("menu").style.display="flex";
-  $("hofBack").onclick=back;
+  function tabs(view){ return '<div class="hofTabs"><button class="hofTab'+(view==="global"?"":" on")+'" id="hofLoc">📱 Lokal</button><button class="hofTab'+(view==="global"?" on":"")+'" id="hofGlob">🌍 Global</button></div>'; }
+  function wire(view){
+    $("menu").style.display="flex";
+    $("hofBack").onclick=back;
+    var lo=$("hofLoc"),gl=$("hofGlob");
+    if(lo)lo.onclick=function(){ if(view!=="local"){sfx("click");render("local");} };
+    if(gl)gl.onclick=function(){ if(view!=="global"){sfx("click");render("global");} };
+  }
+  function render(view){
+    if(view==="global"){
+      $("menuCard").innerHTML='<h1>🏆 Hall of Fame</h1>'+tabs(view)+'<div id="hofBody"><div class="bEmpty">Memuat papan global…</div></div><button class="bigbtn green" id="hofBack">⬅️ Kembali</button>';
+      wire(view);
+      fbFetchTop(function(err,docs){
+        var body=$("hofBody"); if(!body)return;
+        if(err){ body.innerHTML='<div class="bEmpty">Gagal memuat papan global. Cek koneksi internet.</div>'; return; }
+        function top(mode){ var m={}; docs.forEach(function(d){ if(d.mode!==mode)return; if(!m[d.name]||d.score>m[d.name].score)m[d.name]=d; }); var arr=[]; for(var k in m)arr.push(m[k]); arr.sort(function(a,b){return b.score-a.score;}); return arr.slice(0,10); }
+        body.innerHTML=bd(top("k"),"Kampanye 🌍","🏁","k")+bd(top("e"),"Endless 🌍","🔥","e");
+      });
+    }else{
+      $("menuCard").innerHTML='<h1>🏆 Hall of Fame</h1>'+tabs(view)+'<div id="hofBody">'+bd(getBoard("k"),"Kampanye","🏁","k")+bd(getBoard("e"),"Endless","🔥","e")+'</div><button class="bigbtn green" id="hofBack">⬅️ Kembali</button>';
+      wire(view);
+    }
+  }
+  render("local");
 }
 function showStats(back){
   var L=getMeta().life;
@@ -2975,6 +3035,7 @@ document.addEventListener("visibilitychange",()=>{
 (function(){function setVH(){var vv=window.visualViewport;var hh=(vv?vv.height:window.innerHeight);if(hh>0)document.documentElement.style.setProperty("--appvh",hh+"px");}setVH();addEventListener("resize",setVH);addEventListener("orientationchange",function(){setTimeout(setVH,150);});if(window.visualViewport)visualViewport.addEventListener("resize",setVH);setTimeout(setVH,300);setTimeout(setVH,800);})();
 loadSettings();
 applyAchMigrations();
+fbMigrate();
 showIntro();
 
 /* expose buat test */
