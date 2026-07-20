@@ -1,8 +1,8 @@
-/* Bala2 Rush — © 2026 Bernard Wijaya. All rights reserved.
+/* Bala2 Rush — © 2026 wjyb (Bernard Wijaya). All rights reserved.
    service worker
    Bikin game jalan OFFLINE. Naikin CACHE_VERSION tiap update game
    biar HP pemain narik versi baru. */
-const CACHE_VERSION = "bala2-rush-v87";
+const CACHE_VERSION = "bala2-rush-v88";
 
 const ASSETS = [
   "./",

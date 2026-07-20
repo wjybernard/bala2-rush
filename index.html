@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Bala2 Rush — © 2026 Bernard Wijaya. All rights reserved. Hak cipta ada pada pembuatnya; dilarang menyalin, memodifikasi, atau menyebarkan ulang tanpa izin. -->
+<!-- Bala2 Rush — © 2026 wjyb (Bernard Wijaya). All rights reserved. Hak cipta ada pada pembuatnya; dilarang menyalin, memodifikasi, atau menyebarkan ulang tanpa izin. -->
 <html lang="id">
 <head>
 <meta charset="UTF-8">
@@ -2908,7 +2908,7 @@ function showIntro(){
     </div>
     ${(()=>{const l=getBoard(chosenMode===1?"e":"k"); if(!l.length) return ""; const b=l[0];
       return `<div class="recline">🏆 Rekor ${chosenMode===1?"Endless":"Kampanye"}: <b>${esc(b.name)}</b> · ${rupiah(b.score)}${b.endless?" 🔥H"+b.day:(b.win?" 🏁":"")}</div>`;})()}
-    <div class="copyfoot">© 2026 Bernard Wijaya · Bala2 Rush</div>`;
+    <div class="copyfoot">© 2026 wjyb · Bala2 Rush</div>`;
   $("overlay").style.display="flex";
   $("card").querySelectorAll(".tierPill[data-t]").forEach(b=>b.onclick=()=>{
     chosenMode=+b.dataset.t; sfx("click"); showIntro();
