@@ -1249,20 +1249,20 @@ function winJingle(){
   const G4=392.00,A4=440.00,B4=493.88,C5=523.25,D5=587.33,E5=659.25,F5=698.46;
   // lead vokal (freq, mulai dtk, panjang dtk) — nada + ritme rekaman Bernard
   const lead=[
-    [C5,0.000,0.17],[B4,0.170,0.23],[A4,0.403,0.39],[C5,0.789,0.39],[F5,1.177,0.42],   // sa-yur ko-o-ol
-    [C5,1.593,0.20],[A4,1.797,0.26],[G4,2.058,0.31],[C5,2.369,0.36],[E5,2.728,0.48],    // sa-yur ko-o-ol (ol ke-2 lebih panjang)
-    [C5,3.205,0.31],[C5,3.513,0.22],[D5,3.735,0.22],[D5,3.952,0.22],                     // ma-kan da-ging (ma lebih panjang)
-    [D5,4.168,0.22],[D5,4.384,0.25],                                                     // an-jing
-    [G4,4.632,0.26],[G4,4.894,0.23],                                                     // de-ngan
-    [E5,5.125,0.23],[D5,5.356,0.22],[C5,5.576,1.36]                                      // sa-yur kol
+    [C5,0.000,0.289],[B4,0.289,0.331],[A4,0.620,0.564],[C5,1.184,0.562],[F5,1.746,0.576],   // sa-yur ko-o-ol
+    [C5,2.322,0.265],[A4,2.587,0.301],[G4,2.888,0.580],[C5,3.468,0.565],[E5,4.033,0.534],    // sa-yur ko-o-ol
+    [C5,4.567,0.282],[C5,4.849,0.250],[D5,5.099,0.259],[D5,5.358,0.261],                     // ma-kan da-ging
+    [D5,5.619,0.274],[D5,5.893,0.281],                                                     // an-jing
+    [G4,6.174,0.258],[G4,6.432,0.262],                                                     // de-ngan
+    [E5,6.694,0.271],[D5,6.965,0.299],[C5,7.264,1.36]                                      // sa-yur kol
   ];
   lead.forEach(n=>guitar(n[0],n[2],0.16,t0+n[1]));
   // power chord (root + kuint) — "sa-yur" cuma ancang2, chord masuk pas "ko" (downbeat)
   const chord=(root,fifth,at,dur)=>{ guitar(root,dur,0.09,t0+at); guitar(fifth,dur,0.08,t0+at); };
-  chord(174.61,261.63,0.403,1.655);   // F  masuk pas "ko" frase 1
-  chord(130.81,196.00,2.058,1.147);   // C  masuk pas "ko" frase 2
-  chord(196.00,293.66,3.205,2.371);   // G  makan daging anjing dengan
-  chord(130.81,196.00,5.576,1.36);    // C  resolusi di "kol"
+  chord(174.61,261.63,0.620,2.268);   // F  masuk pas "ko" frase 1
+  chord(130.81,196.00,2.888,1.679);   // C  masuk pas "ko" frase 2
+  chord(196.00,293.66,4.567,2.697);   // G  makan daging anjing dengan
+  chord(130.81,196.00,7.264,1.36);    // C  resolusi di "kol"
 }
 
 /* rem suara: satu jenis bunyi gak boleh nubruk dirinya sendiri terlalu rapat.
