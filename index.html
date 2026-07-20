@@ -2402,7 +2402,7 @@ const METAVER=1;
 const PERKS=[
   {id:"modal", ic:"💶", name:"Modal Awal",     desc:"Mulai tiap main dengan kas ekstra.",      max:3, cost:[3,6,10]},
   {id:"prep",  ic:"🌅", name:"Prep Subuh",      desc:"Buka tiap hari udah ada stok adonan & bala2 siap saji.", max:2, cost:[5,10]},
-  {id:"tip",   ic:"⭐", name:"Langganan Setia", desc:"Trinkgeld naik permanen — reputasi bikin royal.", max:2, cost:[6,12]},
+  {id:"tip",   ic:"⭐", name:"Langganan Setia", desc:"Trinkgeld naik permanen.", max:2, cost:[6,12]},
   {id:"eagle", ic:"🦅", name:"Mata Elang",      desc:"Maling jalan lebih lambat, gampang ditangkap.", max:1, cost:[7]},
   {id:"thrift",ic:"🤝", name:"Tukang Nawar",    desc:"Semua upgrade di toko lebih murah.",       max:2, cost:[7,13]},
   {id:"life",  ic:"❤️", name:"Nyawa Ekstra",    desc:"Mulai tiap main dengan 1 nyawa tambahan.",  max:1, cost:[10]},
@@ -2615,11 +2615,14 @@ function showMenu(){
   };
   $("mAch").onclick=()=>showAch(showMenu);
   $("mHelp").onclick=()=>showHelp(true);
+  var mRArm=false,mHArm=false;
   $("mRestart").onclick=()=>{
+    if(!mRArm){ mRArm=true; $("mRestart").textContent="⚠️ Yakin ulang dari Hari 1? Klik lagi"; sfx("burnt"); return; }
     G.paused=false; $("menu").style.display="none";
     stopMusic(); resetGame();
   };
   $("mHome").onclick=()=>{
+    if(!mHArm){ mHArm=true; $("mHome").textContent="⚠️ Yakin akhiri game? Klik lagi"; sfx("burnt"); return; }
     G.paused=false; G.running=false; $("menu").style.display="none";
     stopMusic(); showIntro();          // tinggalin game ini, balik ke menu utama
   };
