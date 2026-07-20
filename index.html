@@ -523,7 +523,7 @@
   .st{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:14px;border-bottom:1px solid #0000000f;}
   .st:last-child{border-bottom:none;}
   .st b{font-size:15px;}
-  .rec{background:var(--accent2);color:#5a3b00;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;}
+  .rec{background:var(--accent2);color:#5a3b00;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:800;text-shadow:none;}
   .diag{background:#fff3e0;border:2px solid var(--accent);border-radius:12px;padding:10px 12px;margin:10px 0;text-align:left;}
   .dh{font-weight:800;font-size:14px;margin-bottom:5px;color:#a8500c;}
   .drow{font-size:13px;line-height:1.5;}
@@ -1250,19 +1250,19 @@ function winJingle(){
   // lead vokal (freq, mulai dtk, panjang dtk) — nada + ritme rekaman Bernard
   const lead=[
     [C5,0.000,0.17],[B4,0.170,0.23],[A4,0.403,0.39],[C5,0.789,0.39],[F5,1.177,0.42],   // sa-yur ko-o-ol
-    [C5,1.593,0.20],[A4,1.797,0.26],[G4,2.058,0.31],[C5,2.369,0.36],[E5,2.728,0.33],    // sa-yur ko-o-ol
-    [C5,3.055,0.19],[C5,3.243,0.22],[D5,3.465,0.22],[D5,3.682,0.22],                     // ma-kan da-ging
-    [D5,3.898,0.22],[D5,4.114,0.25],                                                     // an-jing
-    [G4,4.362,0.26],[G4,4.624,0.23],                                                     // de-ngan
-    [E5,4.855,0.23],[D5,5.086,0.22],[C5,5.306,1.36]                                      // sa-yur kol
+    [C5,1.593,0.20],[A4,1.797,0.26],[G4,2.058,0.31],[C5,2.369,0.36],[E5,2.728,0.48],    // sa-yur ko-o-ol (ol ke-2 lebih panjang)
+    [C5,3.205,0.31],[C5,3.513,0.22],[D5,3.735,0.22],[D5,3.952,0.22],                     // ma-kan da-ging (ma lebih panjang)
+    [D5,4.168,0.22],[D5,4.384,0.25],                                                     // an-jing
+    [G4,4.632,0.26],[G4,4.894,0.23],                                                     // de-ngan
+    [E5,5.125,0.23],[D5,5.356,0.22],[C5,5.576,1.36]                                      // sa-yur kol
   ];
   lead.forEach(n=>guitar(n[0],n[2],0.16,t0+n[1]));
   // power chord (root + kuint) — "sa-yur" cuma ancang2, chord masuk pas "ko" (downbeat)
   const chord=(root,fifth,at,dur)=>{ guitar(root,dur,0.09,t0+at); guitar(fifth,dur,0.08,t0+at); };
   chord(174.61,261.63,0.403,1.655);   // F  masuk pas "ko" frase 1
-  chord(130.81,196.00,2.058,0.997);   // C  masuk pas "ko" frase 2
-  chord(196.00,293.66,3.055,2.251);   // G  makan daging anjing dengan
-  chord(130.81,196.00,5.306,1.36);    // C  resolusi di "kol"
+  chord(130.81,196.00,2.058,1.147);   // C  masuk pas "ko" frase 2
+  chord(196.00,293.66,3.205,2.371);   // G  makan daging anjing dengan
+  chord(130.81,196.00,5.576,1.36);    // C  resolusi di "kol"
 }
 
 /* rem suara: satu jenis bunyi gak boleh nubruk dirinya sendiri terlalu rapat.
@@ -2483,7 +2483,7 @@ const ACHS=[
   {id:"first",   ic:"🐣", name:"Pendatang Baru",    desc:"Layani pembeli pertamamu."},
   {id:"combo10", ic:"🔥", name:"Combo x25",         desc:"Capai combo x25 tanpa putus."},
   {id:"batter",  ic:"🥣", name:"Super Mixer",       desc:"Bikin 30 adonan."},
-  {id:"fuse",    ic:"💡", name:"Elektriker",        desc:"Total mati lampu di bawah 40 detik dalam sekali main."},
+  {id:"fuse",    ic:"💡", name:"Elektriker",        desc:"Total mati lampu di bawah 40 detik dalam sekali main. (Kampanye)"},
   {id:"thief",   ic:"🥷", name:"Penegak Kebenaran", desc:"Usir 15 maling."},
   {id:"kapal",   ic:"⚓", name:"Kawan Perantau",    desc:"Layani 6 rombongan pegawai kapal pesiar."},
   {id:"burn",    ic:"😵‍💫", name:"ADHD",            desc:"Bikin 30 bala2 gosong."},
