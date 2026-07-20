@@ -55,7 +55,8 @@
   .stat{background:#00000030;border-radius:10px;padding:4px 9px;font-weight:700;font-size:14px;display:flex;gap:4px;align-items:center;white-space:nowrap;}
   .stat small{opacity:.8;}
   .daylabel{font-weight:800;font-size:15px;}
-  .clock{margin-left:auto;background:#00000045;font-variant-numeric:tabular-nums;}
+  .clock{background:#00000045;font-variant-numeric:tabular-nums;}
+  .topRight{margin-left:auto;display:flex;gap:6px;align-items:center;flex-shrink:0;}
   .clock.rush{background:var(--accent);animation:pulse .6s infinite alternate;}
   #comboStat{background:#c0392b;}
   .progwrap{flex:1 1 100%;height:8px;background:#00000035;border-radius:6px;overflow:hidden;margin-top:2px;}
@@ -916,8 +917,10 @@
     <span class="stat">💰 <span id="money">0</span></span>
     <span class="stat" id="hearts">❤️❤️❤️</span>
     <span class="stat" id="comboStat" style="display:none">🔥 x<span id="comboVal">2</span></span>
-    <span class="stat clock" id="clock">🕚 11:00 AM</span>
-    <button class="menuBtn" id="menuBtn" aria-label="Menu">☰</button>
+    <div class="topRight">
+      <span class="stat clock" id="clock">🕚 11:00 AM</span>
+      <button class="menuBtn" id="menuBtn" aria-label="Menu">☰</button>
+    </div>
     <div class="progwrap"><div class="progbar" id="dayProg"></div></div>
   </div>
 
