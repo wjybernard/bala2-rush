@@ -1011,7 +1011,7 @@ const G={
   reheating:false, reheatT:0,
   oil:100, oilOn:false, pouring:false, pourT:0, pourFrom:0,
   thiefOn:false, thief:null, thiefRate:0, thiefHit:false, tipToday:0, livesBought:0,
-  paused:false, sfxOn:true, musicOn:true, perkOff:{}, sfxVol:1, musicVol:1, cleanRun:false,
+  paused:false, tut:false, sfxOn:true, musicOn:true, perkOff:{}, sfxVol:1, musicVol:1, cleanRun:false,
   stats:{porsi:0,served:0,walkouts:0,burnt:0,fuseDown:0,oilDown:0,stolen:0,stolenAmt:0,bestCombo:0,
          tipTotal:0, earned:0},   // earned = total masuk (bukan sisa kas) -> beli upgrade gak ngurangin skor
   customers:[], spawnTimer:0, spawnEvery:4, custId:0,
@@ -1866,8 +1866,9 @@ function openBatter(){
   if(G.batterOpen)return;
   G.batterOpen=true;batterStage="weigh";added={};mixVal=0;
   updateRes();renderBatter();$("modal").style.display="flex";
+  if(typeof TUT!=="undefined"&&TUT.on){var _sp=document.getElementById("tutSpot");if(_sp)_sp.style.display="none";var _tp=document.getElementById("tutTip");if(_tp)_tp.style.display="none";}
 }
-function closeBatter(){G.batterOpen=false;$("modal").style.display="none";updateRes();}
+function closeBatter(){G.batterOpen=false;$("modal").style.display="none";updateRes();if(typeof TUT!=="undefined"&&TUT.on){var _tp=document.getElementById("tutTip");if(_tp)_tp.style.display="";if(typeof tutReposition==="function")tutReposition();}}
 function renderBatter(){
   const c=$("modalCard");
   if(batterStage==="weigh"){
@@ -1970,16 +1971,16 @@ function loop(ts){
     } else if(s.state==="ready"){
       s.t+=dt;
       if(G.up.pegawai){ s.helper+=dt; if(s.helper>=HELPERDELAY()){ toWarmer(i); pegawaiPress(); dirty=true; return; } }
-      if(s.t>=burn){s.state="burnt";dirty=true;sfx("burnt");G.stats.burnt++;
+      if(!G.tut && s.t>=burn){s.state="burnt";dirty=true;sfx("burnt");G.stats.burnt++;
         if(bumpLife("burn")>=30) unlock("burn");}
     }
   });
   tickFever(dt);
   if(G.powerOut) G.stats.fuseDown+=dt;                       // wajan nganggur gara2 sekring
   if(G.oilOn && G.oil<OILMIN) G.stats.oilDown+=dt;           // gak bisa goreng gara2 minyak
-  if(G.blackoutRate>0 && !G.powerOut && Math.random()<G.blackoutRate*dt*(G.customers.length>4?0.35:1)) tripPower();
+  if(!G.tut && G.blackoutRate>0 && !G.powerOut && Math.random()<G.blackoutRate*dt*(G.customers.length>4?0.35:1)) tripPower();
   // pencuri Trinkgeld
-  if(G.thiefOn){
+  if(G.thiefOn && !G.tut){
     if(!G.thief){ if(Math.random()<G.thiefRate*dt) spawnThief(); }
     else {
       const th=G.thief;
@@ -2010,12 +2011,13 @@ function loop(ts){
   if(G.reheating){G.reheatT+=dt;if(G.reheatT>=REHEATTIME()){G.reheating=false;G.saus=SAUCECAP();}updateRes();}
   if(G.batterOpen&&batterStage==="mix"){mixVal=Math.max(0,mixVal-dt*7);updateMixBar();}
   for(let i=G.customers.length-1;i>=0;i--){
-    const c=G.customers[i];c.pat-=dt;
+    const c=G.customers[i];if(!G.tut)c.pat-=dt;
     const pb=$("pat"+c.id);
     if(pb){const r=Math.max(0,c.pat/c.patMax);pb.style.width=(r*100)+"%";
       pb.style.background=r>.5?"var(--good)":r>.25?"var(--accent2)":"var(--bad)";}
-    if(c.pat<=0){G.customers.splice(i,1);loseCustomer(c);renderCustomers();}
+    if(!G.tut&&c.pat<=0){G.customers.splice(i,1);loseCustomer(c);renderCustomers();}
   }
+  if(!G.tut){
   const elapsed=G.dayLen-G.timeLeft,was=G.rushOn;
   G.rushOn=elapsed>=G.rushStart&&elapsed<G.rushEnd;
   if(G.rushOn!==was){
@@ -2023,6 +2025,8 @@ function loop(ts){
     if(G.rushOn){ sfx("combo"); showChar("🤩","Jam rame! Pembeli pada dateng nih!",2600); }
     else showChar("😌","Jam rame udah lewat. Santai dikit.",2000);
   }
+  }
+  if(!G.tut){
   G.spawnTimer-=dt;
   if(G.spawnTimer<=0&&G.customers.length<MAXVISIBLE()){
     makeCustomer();
@@ -2030,8 +2034,8 @@ function loop(ts){
     if(G.festival)base*=0.85;
     G.spawnTimer=base*(0.8+Math.random()*0.5);
   }
-  G.timeLeft-=dt;
-  if(G.timeLeft<=0){endDay();return;}
+  }
+  if(!G.tut){ G.timeLeft-=dt; if(G.timeLeft<=0){endDay();return;} }
   updateClock();
   requestAnimationFrame(loop);
 }
@@ -2803,11 +2807,12 @@ var TUT={on:false,step:0,steps:[
   {msg:"Bala2-nya udah mateng! Klik bala2-nya (atau <b>Ambil Semua</b>) buat pindahin ke <b>Penghangat</b>.",els:["slots","collect"],hit:"take"},
   {msg:"Klik <b>Buat Adonan</b> buat nambah stok adonan.",els:["makeBatter"],hit:"batter"},
   {msg:"Pelanggan pertama dateng — dia mau pakai <b>saus kacang</b>. Klik kartunya buat melayani.",els:["customers"],hit:"serve"},
-  {msg:"Sausnya kepakai tuh. Klik <b>Panaskan</b> buat manasin kacangnya lagi.",els:["reheat"],hit:"reheat"}
+  {msg:"Saus kacang <b>kepakai otomatis</b> tiap ada yang beli bala2 pakai saus. Kalau stok mau habis, klik <b>Panaskan</b> buat manasin lagi (butuh waktu).",els:["reheat"],hit:"reheat"}
 ]};
 function tutClearHi(){var l=document.querySelectorAll(".tutHi");for(var i=0;i<l.length;i++)l[i].classList.remove("tutHi");}
 function tutRender(){
   var s=TUT.steps[TUT.step],tip=document.getElementById("tutTip");if(!tip)return;
+  tip.style.display="";
   tip.innerHTML='<span class="sc">⏸️ TUTORIAL '+(TUT.step+1)+'/'+TUT.steps.length+' · game dijeda</span>'+s.msg;
   tutSpotAt(s.els);
 }
@@ -2823,7 +2828,7 @@ function tutSpotAt(els){
 function tutReposition(){var s=TUT&&TUT.on&&TUT.steps[TUT.step];if(s)tutSpotAt(s.els);}
 function tutStart(){
   if(TUT.on)return; TUT.on=true; TUT.step=0;
-  G.running=false; G.paused=true; if(typeof stopMusic==="function")stopMusic();   // beku: gak ada rush, timer, atau pelanggan pergi
+  G.tut=true;   // mode tutorial: waktu goreng tetap jalan, tapi tekanan (kunde kabur, timer, spawn, gosong) dimatiin
   if(!document.getElementById("tutSpot")){var sp=document.createElement("div");sp.id="tutSpot";document.body.appendChild(sp);}
   if(!document.getElementById("tutTip")){var t=document.createElement("div");t.id="tutTip";document.body.appendChild(t);}
   if(!TUT._rz){TUT._rz=true;addEventListener("resize",tutReposition);addEventListener("scroll",tutReposition,true);}
@@ -2833,7 +2838,6 @@ function tutHit(kind){
   if(typeof TUT==="undefined"||!TUT.on)return;
   if(TUT.steps[TUT.step].hit!==kind)return;
   var did=kind; TUT.step++;
-  if(did==="fry") setTimeout(tutRipen,0);   // bala2 langsung mateng (game beku, gak bakal mateng sendiri)
   if(TUT.on && TUT.step<TUT.steps.length && TUT.steps[TUT.step].hit==="serve") setTimeout(tutEnsureCustomer,0);
   if(TUT.step>=TUT.steps.length){tutEnd();}
   else{sfx("ding");tutRender();}
@@ -2855,7 +2859,7 @@ function tutEnd(){
   var t=document.getElementById("tutTip");if(t)t.remove();
   var sp=document.getElementById("tutSpot");if(sp)sp.remove();
   try{localStorage.setItem("bala2_seen","1");}catch(e){}
-  if(G.paused && typeof resumeGame==="function") resumeGame();   // lanjut main normal
+  G.tut=false;   // aktifin lagi semua tekanan game
   var g=document.getElementById("game")||document.body;
   var d=document.createElement("div");d.id="tutDone";d.innerHTML="✅ Mantap! Lanjut jualan sendiri ya 🔥";g.appendChild(d);
   setTimeout(function(){var x=document.getElementById("tutDone");if(x)x.remove();},2200);
