@@ -2827,7 +2827,7 @@ function tutSpotAt(els){
 function tutReposition(){var s=TUT&&TUT.on&&TUT.steps[TUT.step];if(s)tutSpotAt(s.els);}
 function showTutBriefing(){
   $("menuCard").innerHTML=`<h1>👋 Cara Main</h1>${tutorialHTML()}
-    <button class="bigbtn green" id="tbGo">Mulai — tunjukin caranya! 🔥</button>`;
+    <button class="bigbtn green" id="tbGo">Mulai! 🔥</button>`;
   $("menu").style.display="flex";
   $("tbGo").onclick=()=>{ $("menu").style.display="none"; tutStart(); };
 }
