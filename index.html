@@ -1806,7 +1806,6 @@ function loseCustomer(c){
 function startReheat(){
   if(G.reheating||G.saus>=SAUCECAP())return;
   G.reheating=true;G.reheatT=0;updateRes();
-  tutHit("reheat");
 }
 
 /* ---------- HUD ---------- */
@@ -2008,7 +2007,7 @@ function loop(ts){
     G.oil=G.pourFrom+(OILMAX()-G.pourFrom)*p;
     if(p>=1) finishPour(); else updateRes();
   }
-  if(G.reheating){G.reheatT+=dt;if(G.reheatT>=REHEATTIME()){G.reheating=false;G.saus=SAUCECAP();}updateRes();}
+  if(G.reheating){G.reheatT+=dt;if(G.reheatT>=REHEATTIME()){G.reheating=false;G.saus=SAUCECAP();if(typeof tutHit==="function")tutHit("reheat");}updateRes();}
   if(G.batterOpen&&batterStage==="mix"){mixVal=Math.max(0,mixVal-dt*7);updateMixBar();}
   for(let i=G.customers.length-1;i>=0;i--){
     const c=G.customers[i];if(!G.tut)c.pat-=dt;
@@ -2807,13 +2806,13 @@ var TUT={on:false,step:0,steps:[
   {msg:"Bala2-nya udah mateng! Klik bala2-nya (atau <b>Ambil Semua</b>) buat pindahin ke <b>Penghangat</b>.",els:["slots","collect","warmer"],hit:"take"},
   {msg:"Klik <b>Buat Adonan</b> buat nambah stok adonan.",els:["adoCard"],hit:"batter"},
   {msg:"Pelanggan pertama dateng — dia mau pakai <b>saus kacang</b>. Klik kartunya buat melayani.",els:["customers"],hit:"serve"},
-  {msg:"Saus kacang <b>kepakai otomatis</b> tiap ada yang beli bala2 pakai saus. Kalau stok mau habis, klik <b>Panaskan</b> buat manasin lagi (butuh waktu).",els:["sausCard"],hit:"reheat"}
+  {msg:"Saus kacang <b>kepakai otomatis</b> tiap ada yang beli bala2 pakai saus. Kalau stok menipis, klik <b>Panaskan</b> — <b>tunggu sampai penuh lagi</b> (butuh waktu).",els:["sausCard"],hit:"reheat"}
 ]};
 function tutClearHi(){var l=document.querySelectorAll(".tutHi");for(var i=0;i<l.length;i++)l[i].classList.remove("tutHi");}
 function tutRender(){
   var s=TUT.steps[TUT.step],tip=document.getElementById("tutTip");if(!tip)return;
   tip.style.display="";
-  tip.innerHTML='<span class="sc">⏸️ TUTORIAL '+(TUT.step+1)+'/'+TUT.steps.length+' · game dijeda</span>'+s.msg;
+  tip.innerHTML='<span class="sc">👋 TUTORIAL '+(TUT.step+1)+'/'+TUT.steps.length+'</span>'+s.msg;
   tutSpotAt(s.els);
 }
 function tutSpotAt(els){
@@ -2826,6 +2825,12 @@ function tutSpotAt(els){
   spot.style.width=(x2-x1+pad*2)+"px";spot.style.height=(y2-y1+pad*2)+"px";
 }
 function tutReposition(){var s=TUT&&TUT.on&&TUT.steps[TUT.step];if(s)tutSpotAt(s.els);}
+function showTutBriefing(){
+  $("menuCard").innerHTML=`<h1>👋 Cara Main</h1>${tutorialHTML()}
+    <button class="bigbtn green" id="tbGo">Mulai — tunjukin caranya! 🔥</button>`;
+  $("menu").style.display="flex";
+  $("tbGo").onclick=()=>{ $("menu").style.display="none"; tutStart(); };
+}
 function tutStart(){
   if(TUT.on)return; TUT.on=true; TUT.step=0;
   G.tut=true;   // mode tutorial: waktu goreng tetap jalan, tapi tekanan (kunde kabur, timer, spawn, gosong) dimatiin
@@ -2889,7 +2894,7 @@ function showIntro(){
   $("card").querySelectorAll(".tierPill[data-t]").forEach(b=>b.onclick=()=>{
     chosenMode=+b.dataset.t; sfx("click"); showIntro();
   });
-  $("start").onclick=()=>{ G.endless=(chosenMode===1); resetGame(); if(!G.endless && !localStorage.getItem("bala2_seen")){ tutStart(); } };
+  $("start").onclick=()=>{ G.endless=(chosenMode===1); resetGame(); if(!G.endless && !localStorage.getItem("bala2_seen")){ G.tut=true; showTutBriefing(); } };
   $("introStar").onclick=()=>showPerkShop(()=>{ showIntro(); $("menu").style.display="none"; });
   $("introAch").onclick=()=>showAch(()=>{ $("menu").style.display="none"; });
   $("introHall").onclick=()=>showHall(()=>{ $("menu").style.display="none"; });
