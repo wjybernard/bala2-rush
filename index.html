@@ -1675,7 +1675,8 @@ function makeCustomer(){
   if(kapal) qty=5+Math.floor(Math.random()*4);              // 5–8, rombongan kapal
   else if(borongan) qty=4+Math.floor(Math.random()*3);      // 4–6
   else qty=1+Math.floor(Math.random()*Math.min(3+Math.floor(d*0.15),4));  // hari awal gak lagi cuma 1-2 porsi
-  const kacang=Math.random()<Math.min(.55+d*0.03,.9);
+  let kacang=Math.random()<Math.min(.55+d*0.03,.9);
+  if(typeof TUT!=="undefined"&&TUT.on){ qty=1; kacang=true; }
   const bungkus=d>=3&&Math.random()<Math.min(.14+d*0.03,.5);
   const buru=d>=2&&!borongan&&Math.random()<Math.min(.05+d*0.02,.22);
   // hari WM (festival): banyak supporter timnas Jerman — jersey putih + bendera di pipi
@@ -1753,6 +1754,7 @@ function serveCustomer(id){
   const el=document.querySelector('.cust[data-id="'+id+'"]');
   if(!canServe(c)){ if(el){el.classList.remove("shake");void el.offsetWidth;el.classList.add("shake");} return; }
   G.warm-=c.qty; G.saus-=sauceNeed(c);
+  tutHit("serve");
   G.combo++;
   // duit penjualan (emas) dipisah dari Trinkgeld (perak)
   let base=c.qty*PRICE;
@@ -2797,8 +2799,9 @@ function showHelpIntro(){
 var TUT={on:false,step:0,steps:[
   {msg:"Klik salah satu <b>penggorengan</b> (atau tombol <b>Goreng Semua</b>) buat mulai menggoreng bala2.",els:["slots","fryAll"],hit:"fry"},
   {msg:"Tunggu sampai mateng, terus klik bala2-nya (atau <b>Ambil Semua</b>) buat pindahin ke <b>Penghangat</b>.",els:["slots","collect"],hit:"take"},
-  {msg:"Adonan bakal habis kalau dipakai. Klik <b>Buat Adonan</b> buat bikin stok baru.",els:["makeBatter"],hit:"batter"},
-  {msg:"Pesanan pakai saus kacang butuh saus panas. Klik <b>Panaskan</b> buat manasin kacangnya.",els:["reheat"],hit:"reheat"}
+  {msg:"Klik <b>Buat Adonan</b> buat nambah stok adonan.",els:["makeBatter"],hit:"batter"},
+  {msg:"Pelanggan pertama dateng — dia mau pakai <b>saus kacang</b>. Klik kartunya buat melayani.",els:["customers"],hit:"serve"},
+  {msg:"Sausnya kepakai tuh. Klik <b>Panaskan</b> buat manasin kacangnya lagi.",els:["reheat"],hit:"reheat"}
 ]};
 function tutClearHi(){var l=document.querySelectorAll(".tutHi");for(var i=0;i<l.length;i++)l[i].classList.remove("tutHi");}
 function tutRender(){
@@ -2853,7 +2856,7 @@ function showIntro(){
   $("card").querySelectorAll(".tierPill[data-t]").forEach(b=>b.onclick=()=>{
     chosenMode=+b.dataset.t; sfx("click"); showIntro();
   });
-  $("start").onclick=()=>{ G.endless=(chosenMode===1); resetGame(); if(!G.endless && !localStorage.getItem("bala2_seen")){ G.saus=Math.max(1,Math.floor(SAUCECAP()/2)); updateRes(); tutStart(); } };
+  $("start").onclick=()=>{ G.endless=(chosenMode===1); resetGame(); if(!G.endless && !localStorage.getItem("bala2_seen")){ tutStart(); } };
   $("introStar").onclick=()=>showPerkShop(()=>{ showIntro(); $("menu").style.display="none"; });
   $("introAch").onclick=()=>showAch(()=>{ $("menu").style.display="none"; });
   $("introHall").onclick=()=>showHall(()=>{ $("menu").style.display="none"; });
