@@ -967,12 +967,12 @@
       </div>
 
       <div class="panel side">
-        <div class="res">
+        <div class="res" id="adoCard">
           <div class="rh"><span><svg class="ic big"><use href="#ic-bowl" id="adoIc"/></svg> Adonan</span><span id="adoCount">0</span></div>
           <div class="bar ado"><span id="adoBar"></span></div>
           <button class="act" id="makeBatter"><svg class="ic"><use href="#ic-bowl" id="adoBtnIc"/></svg> Buat Adonan</button>
         </div>
-        <div class="res">
+        <div class="res" id="sausCard">
           <div class="rh"><span><svg class="ic big"><use href="#ic-pot" id="scIc"/></svg> Saus</span><span id="scCount">0/0</span></div>
           <div class="bar sc"><span id="scBar"></span></div>
           <div class="statein" id="scState">panas</div>
@@ -2803,11 +2803,11 @@ function showHelpIntro(){
   $("hiBack").onclick=()=>{ $("menu").style.display="none"; };
 }
 var TUT={on:false,step:0,steps:[
-  {msg:"Klik salah satu <b>penggorengan</b> (atau tombol <b>Goreng Semua</b>) buat mulai menggoreng bala2.",els:["slots","fryAll"],hit:"fry"},
-  {msg:"Bala2-nya udah mateng! Klik bala2-nya (atau <b>Ambil Semua</b>) buat pindahin ke <b>Penghangat</b>.",els:["slots","collect"],hit:"take"},
-  {msg:"Klik <b>Buat Adonan</b> buat nambah stok adonan.",els:["makeBatter"],hit:"batter"},
+  {msg:"Klik salah satu <b>penggorengan</b> (atau tombol <b>Goreng Semua</b>) buat mulai menggoreng bala2.",els:["slots","fryAll","warmer"],hit:"fry"},
+  {msg:"Bala2-nya udah mateng! Klik bala2-nya (atau <b>Ambil Semua</b>) buat pindahin ke <b>Penghangat</b>.",els:["slots","collect","warmer"],hit:"take"},
+  {msg:"Klik <b>Buat Adonan</b> buat nambah stok adonan.",els:["adoCard"],hit:"batter"},
   {msg:"Pelanggan pertama dateng — dia mau pakai <b>saus kacang</b>. Klik kartunya buat melayani.",els:["customers"],hit:"serve"},
-  {msg:"Saus kacang <b>kepakai otomatis</b> tiap ada yang beli bala2 pakai saus. Kalau stok mau habis, klik <b>Panaskan</b> buat manasin lagi (butuh waktu).",els:["reheat"],hit:"reheat"}
+  {msg:"Saus kacang <b>kepakai otomatis</b> tiap ada yang beli bala2 pakai saus. Kalau stok mau habis, klik <b>Panaskan</b> buat manasin lagi (butuh waktu).",els:["sausCard"],hit:"reheat"}
 ]};
 function tutClearHi(){var l=document.querySelectorAll(".tutHi");for(var i=0;i<l.length;i++)l[i].classList.remove("tutHi");}
 function tutRender(){
