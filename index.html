@@ -2357,11 +2357,13 @@ function runScore(win){
 const BOARDVER=3, BOARDMAX=5;   // v3 = papan dipisah Kampanye (k) & Endless (e), satuan €
 const FB_KEY="AIzaSyBGb5fGAyC-pRcRU6MUHb__b_vKha71HRE";
 const FB_URL="https://firestore.googleapis.com/v1/projects/bala2-rush/databases/(default)/documents/scores";
+function fbPid(){ try{var p=localStorage.getItem("bala2_pid"); if(!p){ p="p"+Date.now().toString(36)+Math.random().toString(36).slice(2,9); localStorage.setItem("bala2_pid",p);} return p;}catch(e){ return "anon"; } }
 function fbSubmit(name,score,mode,day,win){
   if(!(score>0))return;
   try{
     var body={fields:{
       name:{stringValue:String(name||"?").slice(0,24)},
+      pid:{stringValue:fbPid()},
       score:{doubleValue:Math.round(score*100)/100},
       mode:{stringValue:mode==="e"?"e":"k"},
       day:{integerValue:String(day||0)},
@@ -2375,6 +2377,7 @@ function fbFetchTop(cb){
   fetch(FB_URL+"?key="+FB_KEY+"&pageSize=300").then(function(r){return r.json();}).then(function(d){
     var docs=(d.documents||[]).map(function(x){var f=x.fields||{};return {
       name:(f.name&&f.name.stringValue)||"?",
+      pid:(f.pid&&f.pid.stringValue)||"",
       score:parseFloat((f.score&&((f.score.doubleValue!=null)?f.score.doubleValue:f.score.integerValue))||0),
       mode:((f.mode&&f.mode.stringValue)==="e")?"e":"k",
       day:parseInt((f.day&&f.day.integerValue)||0,10),
@@ -2705,7 +2708,7 @@ function showHall(back){
       fbFetchTop(function(err,docs){
         var body=$("hofBody"); if(!body)return;
         if(err){ body.innerHTML='<div class="bEmpty">Gagal memuat papan global. Cek koneksi internet.</div>'; return; }
-        function top(mode){ var m={}; docs.forEach(function(d){ if(d.mode!==mode)return; if(!m[d.name]||d.score>m[d.name].score)m[d.name]=d; }); var arr=[]; for(var k in m)arr.push(m[k]); arr.sort(function(a,b){return b.score-a.score;}); return arr.slice(0,10); }
+        function top(mode){ var m={}; docs.forEach(function(d){ if(d.mode!==mode)return; var k=d.pid||("n:"+d.name); if(!m[k]||d.score>m[k].score)m[k]=d; }); var arr=[]; for(var kk in m)arr.push(m[kk]); arr.sort(function(a,b){return b.score-a.score;}); return arr.slice(0,10); }
         body.innerHTML=bd(top("k"),"Kampanye 🌍","🏁","k")+bd(top("e"),"Endless 🌍","🔥","e");
       });
     }else{
