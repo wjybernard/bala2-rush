@@ -2708,7 +2708,7 @@ function showHall(back){
       fbFetchTop(function(err,docs){
         var body=$("hofBody"); if(!body)return;
         if(err){ body.innerHTML='<div class="bEmpty">Gagal memuat papan global. Cek koneksi internet.</div>'; return; }
-        function top(mode){ var m={}; docs.forEach(function(d){ if(d.mode!==mode)return; var k=d.pid||("n:"+d.name); if(!m[k]||d.score>m[k].score)m[k]=d; }); var arr=[]; for(var kk in m)arr.push(m[kk]); arr.sort(function(a,b){return b.score-a.score;}); return arr.slice(0,10); }
+        function top(mode){ return docs.filter(function(d){return d.mode===mode;}).sort(function(a,b){return b.score-a.score;}).slice(0,10); }
         body.innerHTML=bd(top("k"),"Kampanye 🌍","🏁","k")+bd(top("e"),"Endless 🌍","🔥","e");
       });
     }else{
